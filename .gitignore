@@ -1,0 +1,36 @@
+# Dépendances
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Tests
+coverage/
+*.test.json
+test-notes.json
+export-notes.json
+
+# Données
+notes.json
+*.json.backup
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environnement
+.env
+.env.local
+.env.*.local
