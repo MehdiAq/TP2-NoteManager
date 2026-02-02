@@ -1,5 +1,3 @@
-
-
 # Rapport
 
 ## Partie 0 : Création du projet TypeScript avec l’IA
@@ -31,13 +29,12 @@ Modèle ts2famix : Permet de visualiser plus en détail ce qui se passe au sein 
 ## Partie 2 : Visualisation du projet TypeScript
 
 Cette section analyse la visualisation générée par Roassal, où chaque classe est représentée par un rectangle dont les dimensions et la couleur sont déterminées par les métriques suivantes :
+
 * **Hauteur** : Nombre de méthodes (NOM).
 * **Largeur** : Nombre d'attributs (NOA).
 * **Couleur** : Nombre de lignes de code (LOC), allant du gris (faible) au rouge (élevé).
 
-<div align="center">
-<img src="images/classGraphRoassal.png" alt="Diagramme Roassal">
-</div>
+![Diagramme Roassal](images/classGraphRoassal.png){ width=60%}
 
 ### 1. Quelles sont les classes remarquables dans le projet ? Comment le voyez-vous dans la visualisation ?
 
