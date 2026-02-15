@@ -1,0 +1,142 @@
+name: CI - Tests, Analyse & Métriques
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ============================================================
+      # STEP 0: Checkout
+      # ============================================================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      # ============================================================
+      # STEP 1: Tests Jest
+      # ============================================================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run Jest tests
+        run: npm test
+
+      # ============================================================
+      # STEP 2: Génération du modèle FamixTypeScript (ts2famix)
+      # ============================================================
+      - name: Install ts2famix
+        run: npm install -g ts2famix
+
+      - name: Generate FamixTypeScript model (JSON)
+        run: |
+          ts2famix -i tsconfig.json -o model.json
+          echo "Model generated: $(wc -c < model.json) bytes"
+          echo "Validating JSON..."
+          python3 -c "import json; json.load(open('model.json')); print('JSON valid')"
+
+      # ============================================================
+      # STEP 3 & 4: Analyse Pharo/Moose + Export CSV
+      # ============================================================
+      - name: Setup smalltalkCI (Moose image)
+        uses: hpi-swa/setup-smalltalkCI@v1
+        id: smalltalkci
+        with:
+          smalltalk-image: Moose64-13
+
+      - name: Load FamixTypeScript metamodel & export CSV
+        run: |
+          # Run smalltalkCI to load FamixTypeScript metamodel
+          # and execute the postLoading script (ci/load_and_export.st)
+          smalltalkci -s ${{ steps.smalltalkci.outputs.smalltalk-image }}
+        shell: bash
+        timeout-minutes: 20
+
+      - name: Verify CSV export
+        run: |
+          if [ -f export_metrics.csv ]; then
+            echo "CSV export successful!"
+            echo "--- Content ---"
+            cat export_metrics.csv
+            echo ""
+            echo "Lines: $(wc -l < export_metrics.csv)"
+          else
+            echo "ERROR: export_metrics.csv not found!"
+            echo "Searching for CSV files..."
+            find . -name "*.csv" -type f 2>/dev/null
+            find $HOME -name "*.csv" -type f 2>/dev/null | head -10
+            exit 1
+          fi
+
+      # ============================================================
+      # STEP 5: Génération des graphiques (Python)
+      # ============================================================
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install pandas matplotlib
+
+      - name: Generate charts (PDF)
+        run: python3 scripts/generate_charts.py export_metrics.csv output
+
+      - name: List generated outputs
+        run: |
+          echo "=== Generated files ==="
+          ls -la model.json export_metrics.csv
+          ls -la output/
+
+      # ============================================================
+      # STEP 6: Upload artifacts
+      # ============================================================
+      - name: Upload analysis artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analysis-results
+          path: |
+            model.json
+            export_metrics.csv
+            output/*.pdf
+          retention-days: 30
+
+      # ============================================================
+      # STEP 7: Commit results to repo
+      # ============================================================
+      - name: Commit generated files to repo
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Copy outputs to a dedicated folder
+          mkdir -p generated
+          cp model.json generated/
+          cp export_metrics.csv generated/
+          cp output/*.pdf generated/
+          
+          git add generated/
+          
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: update generated analysis artifacts [skip ci]"
+            git push
+          fi

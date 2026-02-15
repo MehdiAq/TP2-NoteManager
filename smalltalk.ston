@@ -1,0 +1,19 @@
+SmalltalkCISpec {
+  #loading : [
+    SCIMetacelloLoadSpec {
+      #baseline : 'FamixTypeScript',
+      #repository : 'github://fuhrmanator/FamixTypeScript:master/src',
+      #platforms : [ #pharo ],
+      #onConflict : #useIncoming,
+      #onUpgrade : #useIncoming
+    }
+  ],
+  #testing : {
+    #failOnZeroTests : true
+  },
+  #postLoading : [
+    SCICustomScript {
+      #path : 'ci/load_and_export.st'
+    }
+  ]
+}
