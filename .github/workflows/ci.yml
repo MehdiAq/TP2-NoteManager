@@ -56,7 +56,7 @@ jobs:
         uses: hpi-swa/setup-smalltalkCI@v1
         id: smalltalkci
         with:
-          smalltalk-image: Moose64-13
+          smalltalk-image: Moose64-12
 
       - name: Load FamixTypeScript metamodel & export CSV
         run: |

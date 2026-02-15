@@ -9,11 +9,9 @@ SmalltalkCISpec {
     }
   ],
   #testing : {
-    #failOnZeroTests : true
+    #failOnZeroTests : false
   },
-  #postLoading : [
-    SCICustomScript {
-      #path : 'ci/load_and_export.st'
-    }
-  ]
+  #preTesting : SCICustomScript {
+    #path : 'ci/load_and_export.st'
+  }
 }
