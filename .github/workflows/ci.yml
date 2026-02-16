@@ -83,7 +83,7 @@ jobs:
           fi
 
       # ============================================================
-      # STEP 5: Génération des graphiques (Python)
+      # STEP 4.5: Validation des métriques (4 niveaux)
       # ============================================================
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -93,14 +93,19 @@ jobs:
       - name: Install Python dependencies
         run: pip install pandas matplotlib
 
-      - name: Generate charts (PDF)
-        run: python3 scripts/generate_charts.py export_metrics.csv output
+      - name: Validate metrics (cross-check Pharo vs Python)
+        run: python3 scripts/validate_metrics.py export_metrics.csv model.json .
+
+      # ============================================================
+      # STEP 5: Génération des graphiques (Python)
+      # ============================================================
+      - name: Generate PDF report (charts + analysis)
+        run: python3 scripts/generate_charts.py export_metrics.csv rapport_metriques.pdf
 
       - name: List generated outputs
         run: |
           echo "=== Generated files ==="
-          ls -la model.json export_metrics.csv
-          ls -la output/
+          ls -la model.json export_metrics.csv rapport_metriques.pdf
 
       # ============================================================
       # STEP 6: Upload artifacts
@@ -113,7 +118,7 @@ jobs:
           path: |
             model.json
             export_metrics.csv
-            output/*.pdf
+            rapport_metriques.pdf
           retention-days: 30
 
       # ============================================================
@@ -129,7 +134,7 @@ jobs:
           mkdir -p generated
           cp model.json generated/
           cp export_metrics.csv generated/
-          cp output/*.pdf generated/
+          cp rapport_metriques.pdf generated/
           
           git add generated/
           
