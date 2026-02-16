@@ -1,0 +1,35 @@
+[
+  {
+    "id": "attach_1771270248370_l26va38lg",
+    "noteId": "note_1771270248362_xt208zefg",
+    "fileName": "rapport.pdf",
+    "originalPath": "demo-data/test-files/rapport.pdf",
+    "storedPath": "demo-data/attachments/993170ee30c329246524bbfae265e442.pdf",
+    "type": "document",
+    "size": 22,
+    "mimeType": "application/pdf",
+    "createdAt": "2026-02-16T19:30:48.370Z"
+  },
+  {
+    "id": "attach_1771270248371_hjonyetcf",
+    "noteId": "note_1771270248364_28vip9v3x",
+    "fileName": "example.ts",
+    "originalPath": "demo-data/test-files/example.ts",
+    "storedPath": "demo-data/attachments/66a712583c5e643a50b28f51b3e6a884.ts",
+    "type": "code",
+    "size": 36,
+    "mimeType": "application/typescript",
+    "createdAt": "2026-02-16T19:30:48.371Z"
+  },
+  {
+    "id": "attach_1771270248372_ink9ax727",
+    "noteId": "note_1771270248362_xt208zefg",
+    "fileName": "screenshot.png",
+    "originalPath": "demo-data/test-files/screenshot.png",
+    "storedPath": "demo-data/attachments/0d3f44d963f4cb1e509cc3939151b78b.png",
+    "type": "image",
+    "size": 22,
+    "mimeType": "image/png",
+    "createdAt": "2026-02-16T19:30:48.372Z"
+  }
+]

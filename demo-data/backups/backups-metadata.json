@@ -1,0 +1,23 @@
+[
+  {
+    "id": "backup_1771270248392_87g0o0jvd",
+    "timestamp": "2026-02-16T19:30:48.393Z",
+    "checksum": "ef97ebe0246af5e4b795e342f7884590ba42ddb31937e93e3f6e481c849d880b",
+    "notesCount": 0,
+    "filePath": "demo-data/backups/backup_1771270248392_87g0o0jvd.json"
+  },
+  {
+    "id": "backup_1771270248394_he9omzxfj",
+    "timestamp": "2026-02-16T19:30:48.395Z",
+    "checksum": "ca5b521eb2e56954e807c2f2ed2f923e921076c685e14ef0abb2e01ea566c059",
+    "notesCount": 0,
+    "filePath": "demo-data/backups/backup_1771270248394_he9omzxfj.json"
+  },
+  {
+    "id": "backup_1771270250954_r4atio0ul",
+    "timestamp": "2026-02-16T19:30:50.957Z",
+    "checksum": "7e257e5417debbcd45c5b86550c2d50016d24b6b31306bc547ad0fd40c6d9310",
+    "notesCount": 0,
+    "filePath": "demo-data/backups/backup_1771270250954_r4atio0ul.json"
+  }
+]

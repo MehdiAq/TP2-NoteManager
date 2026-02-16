@@ -64,6 +64,19 @@ export class CLIController {
     console.log(`ID: ${note.getId()}`);
     console.log(`Créée: ${note.getCreatedAt().toLocaleString()}`);
     console.log(`Modifiée: ${note.getUpdatedAt().toLocaleString()}`);
+
+    // Afficher les attachements s'il y en a
+    const attachmentService = this.noteService.getAttachmentService();
+    if (attachmentService) {
+      const attachments = attachmentService.listAttachments(id);
+      if (attachments.length > 0) {
+        console.log(`\nPièces jointes (${attachments.length}):`);
+        attachments.forEach((attach, idx) => {
+          console.log(`  [${idx + 1}] ${attach.fileName} (${attach.type}, ${(attach.size / 1024).toFixed(2)} KB)`);
+          console.log(`      ID: ${attach.id}`);
+        });
+      }
+    }
     console.log('');
   }
 
@@ -111,8 +124,8 @@ export class CLIController {
     });
   }
 
-  public deleteNote(id: string): void {
-    const deleted = this.noteService.deleteNote(id);
+  public async deleteNote(id: string): Promise<void> {
+    const deleted = await this.noteService.deleteNote(id);
 
     if (deleted) {
       console.log('✓ Note supprimée avec succès!');
@@ -136,6 +149,165 @@ export class CLIController {
       console.log(`✓ Notes importées avec succès depuis ${path}`);
     } catch (error) {
       console.error(`✗ Erreur lors de l'import: ${error}`);
+    }
+  }
+
+  // ========== Commandes pour les backups ==========
+
+  public async createBackup(): Promise<void> {
+    const backupService = this.noteService.getBackupService();
+    
+    if (!backupService) {
+      console.log('✗ Le service de backup n\'est pas configuré.');
+      return;
+    }
+
+    try {
+      const metadata = await backupService.createBackup();
+      console.log('✓ Backup créé avec succès!');
+      console.log(`ID: ${metadata.id}`);
+      console.log(`Date: ${metadata.timestamp.toLocaleString()}`);
+      console.log(`Notes sauvegardées: ${metadata.notesCount}`);
+      console.log(`Checksum: ${metadata.checksum.substring(0, 16)}...`);
+    } catch (error) {
+      console.error(`✗ Erreur lors de la création du backup: ${error}`);
+    }
+  }
+
+  public listBackups(): void {
+    const backupService = this.noteService.getBackupService();
+    
+    if (!backupService) {
+      console.log('✗ Le service de backup n\'est pas configuré.');
+      return;
+    }
+
+    const backups = backupService.listBackups();
+
+    if (backups.length === 0) {
+      console.log('Aucun backup trouvé.');
+      return;
+    }
+
+    console.log(`\n${backups.length} backup(s) disponible(s):\n`);
+
+    backups.forEach((backup, index) => {
+      console.log(`[${index + 1}] ${backup.timestamp.toLocaleString()}`);
+      console.log(`    ID: ${backup.id}`);
+      console.log(`    Notes: ${backup.notesCount}`);
+      console.log(`    Checksum: ${backup.checksum.substring(0, 16)}...`);
+      console.log('');
+    });
+  }
+
+  public async restoreBackup(backupId: string): Promise<void> {
+    const backupService = this.noteService.getBackupService();
+    
+    if (!backupService) {
+      console.log('✗ Le service de backup n\'est pas configuré.');
+      return;
+    }
+
+    try {
+      const restored = await backupService.restoreBackup(backupId);
+      
+      if (restored) {
+        console.log('✓ Backup restauré avec succès!');
+        console.log('Les notes ont été rechargées depuis le backup.');
+      }
+    } catch (error) {
+      console.error(`✗ Erreur lors de la restauration: ${error}`);
+    }
+  }
+
+  public async verifyBackup(backupId: string): Promise<void> {
+    const backupService = this.noteService.getBackupService();
+    
+    if (!backupService) {
+      console.log('✗ Le service de backup n\'est pas configuré.');
+      return;
+    }
+
+    try {
+      const isValid = await backupService.verifyBackupIntegrity(backupId);
+      
+      if (isValid) {
+        console.log('✓ L\'intégrité du backup est validée.');
+      } else {
+        console.log('✗ Le backup est corrompu ou introuvable.');
+      }
+    } catch (error) {
+      console.error(`✗ Erreur lors de la vérification: ${error}`);
+    }
+  }
+
+  // ========== Commandes pour les attachements ==========
+
+  public async attachFile(noteId: string, filePath: string): Promise<void> {
+    const attachmentService = this.noteService.getAttachmentService();
+    
+    if (!attachmentService) {
+      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      return;
+    }
+
+    try {
+      const attachment = await attachmentService.attachFile(noteId, filePath);
+      console.log('✓ Fichier attaché avec succès!');
+      console.log(`ID: ${attachment.id}`);
+      console.log(`Nom: ${attachment.fileName}`);
+      console.log(`Type: ${attachment.type}`);
+      console.log(`Taille: ${(attachment.size / 1024).toFixed(2)} KB`);
+    } catch (error) {
+      console.error(`✗ Erreur lors de l'attachement: ${error}`);
+    }
+  }
+
+  public listAttachments(noteId: string): void {
+    const attachmentService = this.noteService.getAttachmentService();
+    
+    if (!attachmentService) {
+      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      return;
+    }
+
+    const attachments = attachmentService.listAttachments(noteId);
+
+    if (attachments.length === 0) {
+      console.log(`Aucune pièce jointe pour la note "${noteId}".`);
+      return;
+    }
+
+    console.log(`\n${attachments.length} pièce(s) jointe(s) pour la note "${noteId}":\n`);
+
+    attachments.forEach((attach, index) => {
+      console.log(`[${index + 1}] ${attach.fileName}`);
+      console.log(`    ID: ${attach.id}`);
+      console.log(`    Type: ${attach.type}`);
+      console.log(`    Taille: ${(attach.size / 1024).toFixed(2)} KB`);
+      console.log(`    Ajouté le: ${attach.createdAt.toLocaleString()}`);
+      console.log('');
+    });
+  }
+
+  public async detachFile(noteId: string, attachmentId: string): Promise<void> {
+    const attachmentService = this.noteService.getAttachmentService();
+    
+    if (!attachmentService) {
+      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      return;
+    }
+
+    try {
+      const detached = await attachmentService.detachFile(noteId, attachmentId);
+      
+      if (detached) {
+        console.log('✓ Fichier détaché avec succès!');
+      } else {
+        console.log('✗ Attachement introuvable ou ID de note incorrect.');
+      }
+    } catch (error) {
+      console.error(`✗ Erreur lors du détachement: ${error}`);
     }
   }
 }
