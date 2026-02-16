@@ -10,6 +10,8 @@ jobs:
   pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       # ============================================================
@@ -122,26 +124,56 @@ jobs:
           retention-days: 30
 
       # ============================================================
-      # STEP 7: Commit results to repo
+      # STEP 7: Commit results to a dedicated branch (ci-results)
+      # This avoids conflicts on main — results are always available
+      # on the ci-results branch without interfering with development.
       # ============================================================
-      - name: Commit generated files to repo
+      - name: Commit generated files to ci-results branch
         if: github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Copy outputs to a dedicated folder
+          # Save generated files to a temp location
+          mkdir -p /tmp/ci-output
+          cp model.json /tmp/ci-output/
+          cp export_metrics.csv /tmp/ci-output/
+          cp rapport_metriques.pdf /tmp/ci-output/
+          
+          # Fetch ci-results branch if it exists, or create an orphan
+          git fetch origin ci-results || true
+          if git rev-parse --verify origin/ci-results >/dev/null 2>&1; then
+            git checkout ci-results
+          else
+            git checkout --orphan ci-results
+            git rm -rf . 2>/dev/null || true
+          fi
+          
+          # Copy files into the branch
           mkdir -p generated
-          cp model.json generated/
-          cp export_metrics.csv generated/
-          cp rapport_metriques.pdf generated/
+          cp /tmp/ci-output/model.json generated/
+          cp /tmp/ci-output/export_metrics.csv generated/
+          cp /tmp/ci-output/rapport_metriques.pdf generated/
+          
+          # Add a README for context
+          cat > generated/README.md << 'EOF'
+          # Résultats du pipeline CI
+          
+          Ce dossier contient les fichiers générés automatiquement par le pipeline CI/CD.
+          
+          - **model.json** — Modèle FamixTypeScript (ts2famix)
+          - **export_metrics.csv** — Métriques exportées par Pharo/Moose
+          - **rapport_metriques.pdf** — Rapport PDF avec graphiques et analyse
+          
+          > Dernière mise à jour par le pipeline CI.
+          EOF
           
           git add generated/
           
-          # Only commit if there are changes
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "ci: update generated analysis artifacts [skip ci]"
-            git push
+            COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+            git commit -m "ci: update analysis results from ${COMMIT_SHA} [skip ci]"
+            git push origin ci-results
           fi
