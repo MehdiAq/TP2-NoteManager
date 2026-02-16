@@ -60,10 +60,19 @@ jobs:
         with:
           smalltalk-image: Moose64-12
 
+      - name: Cache Pharo/Moose image
+        uses: actions/cache@v4
+        id: pharo-cache
+        with:
+          path: |
+            ~/.smalltalkCI/_builds
+            ~/.smalltalkCI/_vms
+          key: pharo-moose64-12-famixts-${{ hashFiles('.smalltalk.ston') }}
+          restore-keys: |
+            pharo-moose64-12-famixts-
+
       - name: Load FamixTypeScript metamodel & export CSV
         run: |
-          # Run smalltalkCI to load FamixTypeScript metamodel
-          # and execute the postLoading script (ci/load_and_export.st)
           smalltalkci -s ${{ steps.smalltalkci.outputs.smalltalk-image }}
         shell: bash
         timeout-minutes: 20
@@ -149,26 +158,47 @@ jobs:
             git rm -rf . 2>/dev/null || true
           fi
           
-          # Copy files into the branch
+          # Copy files into the branch (clean first)
+          rm -rf generated
           mkdir -p generated
           cp /tmp/ci-output/model.json generated/
           cp /tmp/ci-output/export_metrics.csv generated/
           cp /tmp/ci-output/rapport_metriques.pdf generated/
           
-          # Add a README for context
-          cat > generated/README.md << 'EOF'
-          # Résultats du pipeline CI
+          # Root README for the ci-results branch
+          cat > README.md << 'READMEEOF'
+# ci-results — Résultats du pipeline CI/CD
+
+Cette branche est **générée automatiquement** par le pipeline GitHub Actions du projet NoteManager (TP2 MGL843). Elle ne contient aucun code source — uniquement les artefacts d'analyse produits à chaque commit sur `main`.
+
+## Contenu
+
+| Fichier | Description |
+|---------|-------------|
+| `generated/model.json` | Modèle Famix du projet, généré par **ts2famix** à partir du code TypeScript |
+| `generated/export_metrics.csv` | Métriques par classe (NOM, NOA, LOC), exportées par **Pharo/Moose** |
+| `generated/rapport_metriques.pdf` | Rapport PDF avec graphiques et analyse des métriques |
+
+## Pipeline
+
+Chaque commit sur `main` déclenche le pipeline suivant :
+
+```
+Tests Jest → ts2famix → Pharo/Moose → Validation (4 niveaux) → Rapport PDF
+```
+
+Les résultats sont ensuite poussés ici. Le message de commit référence le SHA du commit `main` qui a déclenché la génération.
+
+## Utilisation
+
+- Consulter le rapport : ouvrir `generated/rapport_metriques.pdf`
+- Données brutes : télécharger `generated/export_metrics.csv`
+- Modèle Famix complet : `generated/model.json` (exploitable dans Moose)
+
+> **Ne pas modifier cette branche manuellement** — elle est écrasée à chaque exécution du pipeline.
+READMEEOF
           
-          Ce dossier contient les fichiers générés automatiquement par le pipeline CI/CD.
-          
-          - **model.json** — Modèle FamixTypeScript (ts2famix)
-          - **export_metrics.csv** — Métriques exportées par Pharo/Moose
-          - **rapport_metriques.pdf** — Rapport PDF avec graphiques et analyse
-          
-          > Dernière mise à jour par le pipeline CI.
-          EOF
-          
-          git add generated/
+          git add README.md generated/
           
           if git diff --cached --quiet; then
             echo "No changes to commit"
