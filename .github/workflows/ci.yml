@@ -60,17 +60,6 @@ jobs:
         with:
           smalltalk-image: Moose64-12
 
-      - name: Cache Pharo/Moose image
-        uses: actions/cache@v4
-        id: pharo-cache
-        with:
-          path: |
-            ~/.smalltalkCI/_builds
-            ~/.smalltalkCI/_vms
-          key: pharo-moose64-12-famixts-${{ hashFiles('.smalltalk.ston') }}
-          restore-keys: |
-            pharo-moose64-12-famixts-
-
       - name: Load FamixTypeScript metamodel & export CSV
         run: |
           smalltalkci -s ${{ steps.smalltalkci.outputs.smalltalk-image }}
