@@ -8,7 +8,7 @@ import { CLIController } from './controllers/CLIController';
 export class App {
   private static instance: App;
   private controller: CLIController;
-
+  //commentaire
   private constructor() {
     const dataPath = path.join(process.cwd(), 'notes.json');
     
