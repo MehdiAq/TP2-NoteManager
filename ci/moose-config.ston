@@ -12,6 +12,6 @@ SmalltalkCISpec {
     #failOnZeroTests : false
   },
   #preTesting : SCICustomScript {
-    #path : 'ci/pharo-metrics-export.st'
+    #path : 'pharo-metrics-export.st'
   }
 }
