@@ -42,7 +42,6 @@ def page_titre(pdf):
     fig.text(0.5, 0.37, f'Généré le {datetime.now().strftime("%Y-%m-%d à %H:%M")}',
              ha='center', va='center', fontsize=11, color='#95a5a6')
 
-    # Ligne décorative
     ax = fig.add_axes([0.2, 0.48, 0.6, 0.002])
     ax.set_facecolor('#3498db')
     ax.set_xticks([])
@@ -59,11 +58,9 @@ def page_titre(pdf):
 def page_histogramme(pdf, df):
     fig = plt.figure(figsize=(11, 8.5))
 
-    # Titre de page
     fig.text(0.5, 0.95, '1. Histogramme des métriques par classe',
              ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
 
-    # Graphique (partie haute)
     ax = fig.add_axes([0.08, 0.35, 0.88, 0.55])
 
     x = range(len(df))
@@ -94,7 +91,6 @@ def page_histogramme(pdf, df):
             ax.annotate(f'{int(h)}', xy=(bar.get_x() + bar.get_width()/2, h),
                        xytext=(0, 3), textcoords="offset points", ha='center', fontsize=7)
 
-    # Description (partie basse)
     top_loc = df.loc[df['Lignes_de_Code'].idxmax()]
     top_nom = df.loc[df['Nb_Methodes'].idxmax()]
 
@@ -104,25 +100,14 @@ def page_histogramme(pdf, df):
         f"La classe {top_loc['Nom_Classe']} domine en termes de lignes de code ({int(top_loc['Lignes_de_Code'])} LOC), "
         f"tandis que {top_nom['Nom_Classe']} possède le plus grand nombre de méthodes ({int(top_nom['Nb_Methodes'])}). "
         f"Un déséquilibre entre LOC et NOM peut indiquer des méthodes trop longues ou un manque de "
-        f"décomposition fonctionnelle. Les classes avec un LOC élevé et peu de méthodes sont des "
-        f"candidates au refactoring."
+        f"décomposition fonctionnelle."
     )
 
-    fig.text(0.08, 0.03, description, ha='left', va='bottom', fontsize=10,
-             color='#2c3e50', wrap=True,
-             transform=fig.transFigure,
-             bbox=dict(boxstyle='round,pad=0.4', facecolor='#f0f4f8', edgecolor='#bdc3c7', alpha=0.8),
-             fontfamily='sans-serif', linespacing=1.4,
-             multialignment='left')
-    # Workaround: use ax_text for wrapping
     ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.22])
     ax_desc.axis('off')
     ax_desc.text(0.02, 0.95, description, ha='left', va='top', fontsize=10,
                  color='#2c3e50', wrap=True, linespacing=1.5,
                  transform=ax_desc.transAxes)
-
-    # Remove the fig.text (we use ax_desc instead)
-    fig.texts[-1].set_visible(False)
 
     pdf.savefig(fig)
     plt.close(fig)
@@ -161,7 +146,6 @@ def page_scatter(pdf, df):
     ax.grid(alpha=0.3)
     plt.colorbar(scatter, ax=ax, label='LOC', shrink=0.8)
 
-    # Classes au-dessus / en-dessous du ratio moyen
     above = df[df['Lignes_de_Code'] > avg_ratio * df['Nb_Methodes']]['Nom_Classe'].tolist()
     below = df[df['Lignes_de_Code'] <= avg_ratio * df['Nb_Methodes']]['Nom_Classe'].tolist()
 
@@ -170,8 +154,7 @@ def page_scatter(pdf, df):
         f"de code (axe Y). La taille des cercles est proportionnelle au nombre d'attributs (NOA). "
         f"La ligne pointillée représente le ratio moyen de {avg_ratio:.1f} LOC par méthode.\n\n"
         f"Classes au-dessus de la moyenne (méthodes plus longues) : {', '.join(above) if above else 'aucune'}.\n"
-        f"Classes en dessous (méthodes plus concises) : {', '.join(below) if below else 'aucune'}.\n"
-        f"Les classes éloignées de la ligne de tendance méritent une attention particulière lors du refactoring."
+        f"Classes en dessous (méthodes plus concises) : {', '.join(below) if below else 'aucune'}."
     )
 
     ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.22])
@@ -214,7 +197,6 @@ def page_densite(pdf, df):
     ax.legend(fontsize=9)
     ax.grid(axis='x', alpha=0.3)
 
-    # Analyse
     high_density = df_sorted[df_sorted['LOC_par_Methode'] > 10]['Nom_Classe'].tolist()
     avg_density = df_sorted['LOC_par_Methode'].mean()
 
@@ -275,13 +257,11 @@ def page_tableau(pdf, df):
         table[0, j].set_facecolor('#3498db')
         table[0, j].set_text_props(color='white', fontweight='bold')
 
-    # Alternance de couleurs pour les lignes
     for i in range(1, len(df_display) + 1):
         color = '#f8f9fa' if i % 2 == 0 else 'white'
         for j in range(len(col_labels)):
             table[i, j].set_facecolor(color)
 
-    # Statistiques
     total_loc = int(df['Lignes_de_Code'].sum())
     total_methods = int(df['Nb_Methodes'].sum())
     total_attrs = int(df['Nb_Attributs'].sum())
@@ -319,13 +299,11 @@ def page_conclusion(pdf, df):
     fig.text(0.5, 0.92, 'Conclusion et recommandations',
              ha='center', fontsize=20, fontweight='bold', color='#2c3e50')
 
-    # Ligne décorative
     ax_line = fig.add_axes([0.2, 0.88, 0.6, 0.002])
     ax_line.set_facecolor('#3498db')
     ax_line.set_xticks([])
     ax_line.set_yticks([])
 
-    # Analyse automatique
     df_analysis = df.copy()
     df_analysis['LOC_par_Methode'] = df_analysis['Lignes_de_Code'] / df_analysis['Nb_Methodes'].replace(0, 1)
 
@@ -333,7 +311,6 @@ def page_conclusion(pdf, df):
     total_methods = int(df['Nb_Methodes'].sum())
     nb_classes = len(df)
     avg_density = df_analysis['LOC_par_Methode'].mean()
-    max_density_class = df_analysis.loc[df_analysis['LOC_par_Methode'].idxmax()]
     max_loc_class = df.loc[df['Lignes_de_Code'].idxmax()]
 
     high_risk = df_analysis[df_analysis['LOC_par_Methode'] > 12]['Nom_Classe'].tolist()
@@ -410,7 +387,7 @@ def main():
         page_tableau(pdf, df)
         page_conclusion(pdf, df)
 
-    print(f"Rapport généré avec succès : {output_path} ({6} pages)")
+    print(f"Rapport généré avec succès : {output_path} (6 pages)")
 
 
 if __name__ == '__main__':
