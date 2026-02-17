@@ -64,5 +64,38 @@
     "size": 22,
     "mimeType": "image/png",
     "createdAt": "2026-02-17T00:20:30.577Z"
+  },
+  {
+    "id": "attach_1771293484299_8iw7gph3c",
+    "noteId": "note_1771293484267_kiawlwp48",
+    "fileName": "rapport.pdf",
+    "originalPath": "demo-data/test-files/rapport.pdf",
+    "storedPath": "demo-data/attachments/f228187e57e7d7975419a4f709c68c05.pdf",
+    "type": "document",
+    "size": 22,
+    "mimeType": "application/pdf",
+    "createdAt": "2026-02-17T01:58:04.299Z"
+  },
+  {
+    "id": "attach_1771293484301_f4iu6hs33",
+    "noteId": "note_1771293484282_n1z1rrgv7",
+    "fileName": "example.ts",
+    "originalPath": "demo-data/test-files/example.ts",
+    "storedPath": "demo-data/attachments/3f267d1a3969b6c4a7bd8494251f8c1e.ts",
+    "type": "code",
+    "size": 36,
+    "mimeType": "application/typescript",
+    "createdAt": "2026-02-17T01:58:04.301Z"
+  },
+  {
+    "id": "attach_1771293484301_1qjb9w6bd",
+    "noteId": "note_1771293484267_kiawlwp48",
+    "fileName": "screenshot.png",
+    "originalPath": "demo-data/test-files/screenshot.png",
+    "storedPath": "demo-data/attachments/ae2bac9ed67b96f4d3a040524dc5ff5f.png",
+    "type": "image",
+    "size": 22,
+    "mimeType": "image/png",
+    "createdAt": "2026-02-17T01:58:04.301Z"
   }
 ]
