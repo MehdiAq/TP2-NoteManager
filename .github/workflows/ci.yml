@@ -60,20 +60,9 @@ jobs:
         with:
           smalltalk-image: Moose64-12
 
-      - name: Cache Pharo/Moose image
-        uses: actions/cache@v4
-        id: pharo-cache
-        with:
-          path: |
-            ~/.smalltalkCI/_builds
-            ~/.smalltalkCI/_vms
-          key: pharo-moose64-12-famixts-${{ hashFiles('.smalltalk.ston') }}
-          restore-keys: |
-            pharo-moose64-12-famixts-
-
       - name: Load FamixTypeScript metamodel & export CSV
         run: |
-          smalltalkci -s ${{ steps.smalltalkci.outputs.smalltalk-image }}
+          smalltalkci -s ${{ steps.smalltalkci.outputs.smalltalk-image }} ci/moose-config.ston
         shell: bash
         timeout-minutes: 20
 
@@ -105,13 +94,13 @@ jobs:
         run: pip install pandas matplotlib
 
       - name: Validate metrics (cross-check Pharo vs Python)
-        run: python3 scripts/validate_metrics.py export_metrics.csv model.json .
+        run: python3 ci/validate_metrics.py export_metrics.csv model.json .
 
       # ============================================================
-      # STEP 5: Génération des graphiques (Python)
+      # STEP 5: Génération du rapport PDF
       # ============================================================
       - name: Generate PDF report (charts + analysis)
-        run: python3 scripts/generate_charts.py export_metrics.csv rapport_metriques.pdf
+        run: python3 ci/generate_charts.py export_metrics.csv rapport_metriques.pdf
 
       - name: List generated outputs
         run: |
@@ -134,8 +123,6 @@ jobs:
 
       # ============================================================
       # STEP 7: Commit results to a dedicated branch (ci-results)
-      # This avoids conflicts on main — results are always available
-      # on the ci-results branch without interfering with development.
       # ============================================================
       - name: Commit generated files to ci-results branch
         if: github.event_name == 'push'
