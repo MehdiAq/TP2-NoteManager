@@ -2,6 +2,21 @@
 
 Un gestionnaire de notes professionnel en TypeScript avec une architecture orientée objet complète, suivant les principes SOLID et les design patterns.
 
+## 📑 Table des matières
+
+- [Architecture](#%EF%B8%8F-architecture)
+- [Classes et Responsabilités](#-classes-et-responsabilités)
+- [Installation](#-installation)
+- [Utilisation](#-utilisation)
+- [Tests](#-tests)
+- [Principes SOLID](#-principes-solid-appliqués)
+- [Extensibilité](#-extensibilité)
+- [Diagramme de classes](#-diagramme-de-classes-simplifié)
+- [Points d'apprentissage](#-points-dapprentissage)
+- [Rapports de TP](#-rapports-de-tp)
+- [Licence](#-licence)
+- [Auteur](#-auteur)
+
 ## 🏗️ Architecture
 
 ### Principes de conception
@@ -294,6 +309,13 @@ Ce projet démontre :
 5. **Composition over inheritance** : Utilisation de la composition plutôt que l'héritage
 6. **Design patterns** : Singleton, Factory, Repository, Service Layer
 7. **Testabilité** : Architecture facilitant les tests unitaires et fonctionnels
+
+## 📄 Rapports de TP
+
+| TP | Rapport | Description |
+|----|---------|-------------|
+| TP1 | [Rapport TP1](rapports/rapport_TP1.md) | Création du projet TypeScript avec l'IA, modélisation avec Moose/Roassal |
+| TP2 | *(à venir)* | |
 
 ## 📝 Licence
 
