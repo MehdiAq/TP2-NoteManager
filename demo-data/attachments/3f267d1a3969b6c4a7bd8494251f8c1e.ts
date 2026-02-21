@@ -1,1 +1,0 @@
-const demo: string = "Hello FURPS!";
