@@ -74,6 +74,7 @@ jobs:
             cat export_metrics.csv
             echo ""
             echo "Lines: $(wc -l < export_metrics.csv)"
+            echo "Columns: $(head -1 export_metrics.csv)"
           else
             echo "ERROR: export_metrics.csv not found!"
             echo "Searching for CSV files..."
@@ -91,7 +92,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install pandas matplotlib
+        run: pip install pandas matplotlib numpy
 
       - name: Validate metrics (cross-check Pharo vs Python)
         run: python3 ci/validate_metrics.py export_metrics.csv model.json .
@@ -106,6 +107,8 @@ jobs:
         run: |
           echo "=== Generated files ==="
           ls -la model.json export_metrics.csv rapport_metriques.pdf
+          echo "=== Graphs ==="
+          ls -la graphs/ 2>/dev/null || echo "No graphs directory"
 
       # ============================================================
       # STEP 6: Upload artifacts
@@ -119,6 +122,7 @@ jobs:
             model.json
             export_metrics.csv
             rapport_metriques.pdf
+            graphs/
           retention-days: 30
 
       # ============================================================
@@ -130,11 +134,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Save generated files to a temp location
-          mkdir -p /tmp/ci-output
+          # Save generated files to a temp location (before any checkout)
+          mkdir -p /tmp/ci-output/graphs
           cp model.json /tmp/ci-output/
           cp export_metrics.csv /tmp/ci-output/
           cp rapport_metriques.pdf /tmp/ci-output/
+          cp ci/generate_ci_results_readme.py /tmp/ci-output/
+          if [ -d graphs ]; then
+            cp graphs/*.png /tmp/ci-output/graphs/ 2>/dev/null || true
+          fi
           
           # Fetch ci-results branch if it exists, or create an orphan
           git fetch origin ci-results || true
@@ -147,45 +155,16 @@ jobs:
           
           # Copy files into the branch (clean first)
           rm -rf generated
-          mkdir -p generated
+          mkdir -p generated/graphs
           cp /tmp/ci-output/model.json generated/
           cp /tmp/ci-output/export_metrics.csv generated/
           cp /tmp/ci-output/rapport_metriques.pdf generated/
+          if ls /tmp/ci-output/graphs/*.png >/dev/null 2>&1; then
+            cp /tmp/ci-output/graphs/*.png generated/graphs/
+          fi
           
           # Root README for the ci-results branch
-          python3 -c "
-          readme = '''# ci-results — Résultats du pipeline CI/CD
-
-          Cette branche est générée automatiquement par le pipeline GitHub Actions du projet NoteManager (TP2 MGL843). Elle ne contient aucun code source — uniquement les artefacts d analyse produits à chaque commit sur main.
-
-          ## Contenu
-
-          | Fichier | Description |
-          |---------|-------------|
-          | generated/model.json | Modèle Famix du projet, généré par ts2famix à partir du code TypeScript |
-          | generated/export_metrics.csv | Métriques par classe (NOM, NOA, LOC), exportées par Pharo/Moose |
-          | generated/rapport_metriques.pdf | Rapport PDF avec graphiques et analyse des métriques |
-
-          ## Pipeline
-
-          Chaque commit sur main déclenche le pipeline suivant :
-
-          Tests Jest → ts2famix → Pharo/Moose → Validation (4 niveaux) → Rapport PDF
-
-          Les résultats sont ensuite poussés ici. Le message de commit référence le SHA du commit main qui a déclenché la génération.
-
-          ## Utilisation
-
-          - Consulter le rapport : ouvrir generated/rapport_metriques.pdf
-          - Données brutes : télécharger generated/export_metrics.csv
-          - Modèle Famix complet : generated/model.json (exploitable dans Moose)
-
-          > Ne pas modifier cette branche manuellement — elle est écrasée à chaque exécution du pipeline.
-          '''
-          import textwrap
-          with open('README.md', 'w') as f:
-              f.write(textwrap.dedent(readme))
-          "
+          python3 /tmp/ci-output/generate_ci_results_readme.py
           
           git add README.md generated/
           
