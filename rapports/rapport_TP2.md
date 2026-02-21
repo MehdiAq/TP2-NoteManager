@@ -94,8 +94,8 @@ Cependant, l'utilisation d'interfaces (`IBackupService`, `IAttachmentService`) e
 ### Annexe 1 — Dépôt GitHub du projet TypeScript
 https://github.com/MehdiAq/TP2-NoteManager
 
-### Annexe 2 — Dépôt GitHub du code Pharo (Moose)
-*À compléter.*
+### Annexe 2 — Code Pharo / Moose (export des métriques)
+Le script Smalltalk utilisé pour exporter les métriques depuis Moose se trouve dans le même dépôt, dans le fichier [`ci/pharo-metrics-export.st`](https://github.com/MehdiAq/TP2-NoteManager/blob/main/ci/pharo-metrics-export.st). Ce script charge le modèle FamixTypeScript généré par ts2famix, calcule 7 métriques par classe (NOM, NOA, LOC, WMC, DIT, CBO, LCOM) et exporte les résultats en CSV via NeoCSV. Il est exécuté automatiquement par le pipeline CI/CD GitHub Actions.
 
 ### Annexe 3 — Détail des exigences FURPS
 Voir le fichier [`Note-de-changement-FURPS.md`](../Note-de-changement-FURPS.md) pour la documentation complète des 3 exigences implémentées (architecture, utilisation, résultats de tests).
