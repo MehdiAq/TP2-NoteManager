@@ -16,7 +16,7 @@ import os
 # ============================================================
 # Configuration
 # ============================================================
-EXPECTED_COLUMNS = ['Nom_Classe', 'Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code']
+EXPECTED_COLUMNS = ['Nom_Classe', 'Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code', 'WMC', 'DIT', 'CBO', 'LCOM']
 SEPARATOR = ';'
 
 # Tolerance for LOC comparison (Pharo reads source files, Python uses
@@ -51,19 +51,102 @@ def compute_metrics_from_json(data, source_root='.'):
     classes = [e for e in data if e.get('FM3') == 'FamixTypeScript.Class']
     methods = [e for e in data if e.get('FM3') == 'FamixTypeScript.Method']
     properties = [e for e in data if e.get('FM3') == 'FamixTypeScript.Property']
+    inheritances = [e for e in data if e.get('FM3') == 'FamixTypeScript.Inheritance']
+    invocations = [e for e in data if e.get('FM3') == 'FamixTypeScript.Invocation']
+    accesses = [e for e in data if e.get('FM3') == 'FamixTypeScript.Access']
+
+    # Build parent-type map: class_id -> list of methods
+    class_methods_map = {}
+    for m in methods:
+        parent_ref = m.get('parentType', {}).get('ref')
+        if parent_ref:
+            class_methods_map.setdefault(parent_ref, []).append(m)
+
+    # Build parent-type map: class_id -> list of properties
+    class_props_map = {}
+    for p in properties:
+        parent_ref = p.get('parentType', {}).get('ref')
+        if parent_ref:
+            class_props_map.setdefault(parent_ref, []).append(p)
+
+    # Build method-id -> class-id map
+    method_class_map = {}
+    for m in methods:
+        parent_ref = m.get('parentType', {}).get('ref')
+        if parent_ref:
+            method_class_map[m['id']] = parent_ref
+
+    # Build property-id -> class-id map
+    prop_class_map = {}
+    for p in properties:
+        parent_ref = p.get('parentType', {}).get('ref')
+        if parent_ref:
+            prop_class_map[p['id']] = parent_ref
+
+    # Build DIT map from inheritance edges: subclass -> superclass
+    # FamixTypeScript.Inheritance has subclass.ref and superclass.ref
+    superclass_map = {}
+    for inh in inheritances:
+        sub_ref = inh.get('subclass', {}).get('ref')
+        sup_ref = inh.get('superclass', {}).get('ref')
+        if sub_ref and sup_ref:
+            superclass_map[sub_ref] = sup_ref
+
+    # Build CBO: for each class collect coupled classes via invocations and accesses
+    # invocation: sender method -> candidates (list of methods)
+    # access: accessor method -> variable (property)
+    cbo_map = {c['id']: set() for c in classes}
+    class_ids = {c['id'] for c in classes}
+
+    for inv in invocations:
+        sender_ref = inv.get('sender', {}).get('ref')
+        if sender_ref not in method_class_map:
+            continue
+        sender_class = method_class_map[sender_ref]
+        candidates = inv.get('candidates', [])
+        if not isinstance(candidates, list):
+            candidates = [candidates]
+        for cand in candidates:
+            cand_ref = cand.get('ref') if isinstance(cand, dict) else None
+            if cand_ref and cand_ref in method_class_map:
+                target_class = method_class_map[cand_ref]
+                if target_class != sender_class and target_class in class_ids:
+                    if sender_class in cbo_map:
+                        cbo_map[sender_class].add(target_class)
+                    if target_class in cbo_map:
+                        cbo_map[target_class].add(sender_class)
+
+    for acc in accesses:
+        accessor_ref = acc.get('accessor', {}).get('ref')
+        variable_ref = acc.get('variable', {}).get('ref')
+        if accessor_ref in method_class_map and variable_ref in prop_class_map:
+            accessor_class = method_class_map[accessor_ref]
+            prop_owner_class = prop_class_map[variable_ref]
+            if accessor_class != prop_owner_class and prop_owner_class in class_ids:
+                if accessor_class in cbo_map:
+                    cbo_map[accessor_class].add(prop_owner_class)
+                if prop_owner_class in cbo_map:
+                    cbo_map[prop_owner_class].add(accessor_class)
+
+    # Build LCOM: accesses per method (property refs)
+    method_attrs_map = {}
+    for acc in accesses:
+        accessor_ref = acc.get('accessor', {}).get('ref')
+        variable_ref = acc.get('variable', {}).get('ref')
+        if accessor_ref and variable_ref:
+            method_attrs_map.setdefault(accessor_ref, set()).add(variable_ref)
 
     metrics = {}
     for c in classes:
         name = c['name']
+        class_id = c['id']
 
         # Count methods belonging to this class
-        class_methods = [m for m in methods
-                         if m.get('parentType', {}).get('ref') == c['id']]
+        class_methods = class_methods_map.get(class_id, [])
         nb_methods = len(class_methods)
 
         # Count attributes belonging to this class
-        class_attrs = [p for p in properties
-                       if p.get('parentType', {}).get('ref') == c['id']]
+        class_attrs = class_props_map.get(class_id, [])
         nb_attrs = len(class_attrs)
 
         # Compute LOC from source anchor (primary method)
@@ -89,10 +172,53 @@ def compute_metrics_from_json(data, source_root='.'):
             for m in class_methods:
                 loc += m.get('numberOfLinesOfCode', 0)
 
+        # WMC: sum of cyclomatic complexity
+        wmc = 0
+        for m in class_methods:
+            cc = m.get('cyclomaticComplexity', None)
+            if cc is None or cc <= 0:
+                cc = 1
+            wmc += cc
+
+        # DIT: depth of inheritance tree
+        dit = 0
+        current = class_id
+        visited = set()
+        while current in superclass_map:
+            parent = superclass_map[current]
+            if parent in visited:
+                break
+            visited.add(parent)
+            dit += 1
+            current = parent
+
+        # CBO: number of coupled classes
+        cbo = len(cbo_map.get(class_id, set()))
+
+        # LCOM: Chidamber-Kemerer — max(0, |P| - |Q|)
+        non_stub_methods = [m for m in class_methods
+                            if not m.get('isStub', False)
+                            and m.get('name', '') != 'constructor']
+        P = 0
+        Q = 0
+        for i in range(len(non_stub_methods)):
+            attrs_i = method_attrs_map.get(non_stub_methods[i]['id'], set())
+            for j in range(i + 1, len(non_stub_methods)):
+                attrs_j = method_attrs_map.get(non_stub_methods[j]['id'], set())
+                if attrs_i.isdisjoint(attrs_j):
+                    P += 1
+                else:
+                    Q += 1
+        lcom = max(0, P - Q)
+
         metrics[name] = {
             'Nb_Methodes': nb_methods,
             'Nb_Attributs': nb_attrs,
-            'Lignes_de_Code': loc
+            'Lignes_de_Code': loc,
+            'WMC': wmc,
+            'DIT': dit,
+            'CBO': cbo,
+            'LCOM': lcom,
         }
 
     return metrics
@@ -128,7 +254,7 @@ def validate_structure(csv_rows, csv_path):
 
     # Check numeric columns are valid integers
     for i, row in enumerate(csv_rows):
-        for col in ['Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code']:
+        for col in ['Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code', 'WMC', 'DIT', 'CBO', 'LCOM']:
             try:
                 int(row[col])
             except (ValueError, KeyError):
@@ -148,6 +274,10 @@ def validate_invariants(csv_rows, json_metrics):
         nb_methods = int(row['Nb_Methodes'])
         nb_attrs = int(row['Nb_Attributs'])
         loc = int(row['Lignes_de_Code'])
+        wmc = int(row['WMC'])
+        dit = int(row['DIT'])
+        cbo = int(row['CBO'])
+        lcom = int(row['LCOM'])
 
         # No negative values
         if nb_methods < 0:
@@ -156,6 +286,14 @@ def validate_invariants(csv_rows, json_metrics):
             errors.append(f'{name}: Nb_Attributs is negative ({nb_attrs})')
         if loc < 0:
             errors.append(f'{name}: Lignes_de_Code is negative ({loc})')
+        if wmc < 0:
+            errors.append(f'{name}: WMC is negative ({wmc})')
+        if dit < 0:
+            errors.append(f'{name}: DIT is negative ({dit})')
+        if cbo < 0:
+            errors.append(f'{name}: CBO is negative ({cbo})')
+        if lcom < 0:
+            errors.append(f'{name}: LCOM is negative ({lcom})')
 
         # LOC should not be 0 if there are methods
         if nb_methods > 0 and loc == 0:
@@ -164,6 +302,14 @@ def validate_invariants(csv_rows, json_metrics):
         # LOC should be >= number of methods (at minimum 1 line per method)
         if loc > 0 and loc < nb_methods:
             errors.append(f'{name}: LOC ({loc}) < Nb_Methodes ({nb_methods}) - suspicious')
+
+        # WMC >= Nb_Methodes (each method has at minimum CC=1)
+        if nb_methods > 0 and wmc < nb_methods:
+            errors.append(f'{name}: WMC ({wmc}) < Nb_Methodes ({nb_methods}) - each method should have CC >= 1')
+
+        # DIT should be reasonable for TypeScript
+        if dit >= 10:
+            errors.append(f'{name}: DIT ({dit}) >= 10 — unusually deep inheritance hierarchy')
 
     # Check at least 1 class was exported
     if len(csv_rows) == 0:
@@ -199,6 +345,10 @@ def validate_cross_check(csv_rows, json_metrics):
         csv_methods = int(row['Nb_Methodes'])
         csv_attrs = int(row['Nb_Attributs'])
         csv_loc = int(row['Lignes_de_Code'])
+        csv_wmc = int(row['WMC'])
+        csv_dit = int(row['DIT'])
+        csv_cbo = int(row['CBO'])
+        csv_lcom = int(row['LCOM'])
 
         if csv_methods != expected['Nb_Methodes']:
             errors.append(
@@ -217,6 +367,35 @@ def validate_cross_check(csv_rows, json_metrics):
             )
         elif loc_diff > 0:
             print(f'  [INFO] {name}: minor LOC difference (CSV={csv_loc}, Python={expected["Lignes_de_Code"]}) — within tolerance')
+
+        wmc_diff = abs(csv_wmc - expected['WMC'])
+        if wmc_diff > 2:
+            errors.append(
+                f'{name}: WMC mismatch — CSV={csv_wmc}, Python={expected["WMC"]} (diff={wmc_diff})'
+            )
+        elif wmc_diff > 0:
+            print(f'  [INFO] {name}: minor WMC difference (CSV={csv_wmc}, Python={expected["WMC"]}) — within tolerance')
+
+        if csv_dit != expected['DIT']:
+            errors.append(
+                f'{name}: DIT mismatch — CSV={csv_dit}, Python={expected["DIT"]}'
+            )
+
+        cbo_diff = abs(csv_cbo - expected['CBO'])
+        if cbo_diff > 2:
+            errors.append(
+                f'{name}: CBO mismatch — CSV={csv_cbo}, Python={expected["CBO"]} (diff={cbo_diff})'
+            )
+        elif cbo_diff > 0:
+            print(f'  [INFO] {name}: minor CBO difference (CSV={csv_cbo}, Python={expected["CBO"]}) — within tolerance')
+
+        lcom_diff = abs(csv_lcom - expected['LCOM'])
+        if lcom_diff > 3:
+            errors.append(
+                f'{name}: LCOM mismatch — CSV={csv_lcom}, Python={expected["LCOM"]} (diff={lcom_diff})'
+            )
+        elif lcom_diff > 0:
+            print(f'  [INFO] {name}: minor LCOM difference (CSV={csv_lcom}, Python={expected["LCOM"]}) — within tolerance')
 
     return errors
 
@@ -258,7 +437,7 @@ def main():
     json_metrics = compute_metrics_from_json(data, source_root)
     print(f'  Classes dans le JSON: {len(json_metrics)}')
     for name, m in sorted(json_metrics.items()):
-        print(f'    {name}: methods={m["Nb_Methodes"]}, attrs={m["Nb_Attributs"]}, loc={m["Lignes_de_Code"]}')
+        print(f'    {name}: methods={m["Nb_Methodes"]}, attrs={m["Nb_Attributs"]}, loc={m["Lignes_de_Code"]}, wmc={m["WMC"]}, dit={m["DIT"]}, cbo={m["CBO"]}, lcom={m["LCOM"]}')
     print()
 
     # Invariants
