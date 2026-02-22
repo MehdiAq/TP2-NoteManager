@@ -3,6 +3,7 @@
 **Cours** : MGL843 — Sujets avancés en conception logicielle  
 **Projet** : NoteManager (TypeScript / Node.js)  
 **Dépôt** : [MehdiAq/TP2-NoteManager](https://github.com/MehdiAq/TP2-NoteManager)
+**Équipe** : 2
 
 ---
 
@@ -10,10 +11,10 @@
 
 - [Rapport TP2 — Évaluer la qualité d'un projet TypeScript](#rapport-tp2--évaluer-la-qualité-dun-projet-typescript)
   - [Table des matières](#table-des-matières)
-  - [3.1 Ajouter des exigences au projet TypeScript](#31-ajouter-des-exigences-au-projet-typescript)
+  - [Partie 1: Ajouter des exigences au projet TypeScript](#partie-1-ajouter-des-exigences-au-projet-typescript)
     - [Question 1 — Exigences ajoutées et justifications](#question-1--exigences-ajoutées-et-justifications)
     - [Question 2 — Impact sur la complexité et la conception](#question-2--impact-sur-la-complexité-et-la-conception)
-  - [3.2 Visualiser les métriques du projet TypeScript](#32-visualiser-les-métriques-du-projet-typescript)
+  - [Partie 2: Visualiser les métriques du projet TypeScript](#partie-2-visualiser-les-métriques-du-projet-typescript)
     - [Question 1 — Métriques choisies](#question-1--métriques-choisies)
     - [Question 2 — Calcul des métriques supplémentaires](#question-2--calcul-des-métriques-supplémentaires)
     - [Question 3 — Éléments remarquables](#question-3--éléments-remarquables)
@@ -37,7 +38,7 @@
 
 ---
 
-## 3.1 Ajouter des exigences au projet TypeScript
+## Partie 1: Ajouter des exigences au projet TypeScript
 
 ### Question 1 — Exigences ajoutées et justifications
 
@@ -79,7 +80,7 @@ Cependant, l'utilisation d'interfaces (`IBackupService`, `IAttachmentService`) e
 
 ---
 
-## 3.2 Visualiser les métriques du projet TypeScript
+## Partie 2: Visualiser les métriques du projet TypeScript
 
 ### Question 1 — Métriques choisies
 
@@ -220,3 +221,7 @@ Voir le fichier [`Note-de-changement-FURPS.md`](../Note-de-changement-FURPS.md) 
 #### Figure 10
 **Conclusion et recommandations**
 ![Conclusion et recommandations](../images/10_conclusion.png)
+
+---
+
+*Ce rapport a été rédigé avec l'aide du LLM Claude Opus 4.6.*
