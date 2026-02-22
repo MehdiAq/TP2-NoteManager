@@ -2,7 +2,7 @@
 
 **Cours** : MGL843 — Sujets avancés en conception logicielle  
 **Projet** : NoteManager (TypeScript / Node.js)  
-**Dépôt** : [MehdiAq/TP2-NoteManager](https://github.com/MehdiAq/TP2-NoteManager)
+**Dépôt** : [MehdiAq/TP2-NoteManager](https://github.com/MehdiAq/TP2-NoteManager)  
 **Équipe** : 2
 
 ---
@@ -37,6 +37,8 @@
       - [Figure 10](#figure-10)
 
 ---
+
+<div style="page-break-after: always;"></div>
 
 ## Partie 1: Ajouter des exigences au projet TypeScript
 
