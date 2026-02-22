@@ -65,11 +65,31 @@ Cependant, l'utilisation d'interfaces (`IBackupService`, `IAttachmentService`) e
 
 ## 3.2 Visualiser les métriques du projet TypeScript
 
-> *Les réponses à cette section seront complétées après l'analyse des résultats du pipeline CI.*
-
 ### Question 1 — Métriques choisies
 
-*À compléter.*
+Nous avons sélectionné **7 métriques primaires** couvrant les dimensions fondamentales de la qualité de conception : la taille, la complexité, le couplage et la cohésion.
+
+| Métrique | Définition | Pourquoi elle est importante |
+|----------|-----------|------------------------------|
+| **LOC** (Lines of Code) | Nombre de lignes de code source par classe | Métrique la plus simple mais empiriquement la plus fiable pour prédire la prédisposition aux fautes. Plus une classe est volumineuse, plus la probabilité de bogues augmente. |
+| **NOM** (Number of Methods) | Nombre de méthodes d'une classe | Indicateur de la taille comportementale. Un NOM élevé peut signaler une classe avec trop de responsabilités, en violation du principe de responsabilité unique (SRP). |
+| **NOA** (Number of Attributes) | Nombre d'attributs d'une classe | Indicateur de la taille structurelle. Combiné avec LCOM, il permet de détecter les classes qui stockent des données sans les exploiter de manière cohésive. |
+| **WMC** (Weighted Methods per Class) | Somme des complexités cyclomatiques de chaque méthode (Chidamber et Kemerer, 1994) | Deuxième meilleure métrique pour prédire les fautes selon les études empiriques. Un WMC élevé indique une classe complexe, difficile à tester et à maintenir. La revue systématique d'Isong et Obeten (2013) confirme que WMC est une des métriques les moins controversées à travers 29 études empiriques. |
+| **DIT** (Depth of Inheritance Tree) | Profondeur maximale dans la hiérarchie d'héritage (Chidamber et Kemerer, 1994) | Un DIT élevé complique la compréhension car les comportements hérités sont répartis sur plusieurs niveaux. L'heuristique « Favoriser la composition plutôt que l'héritage » suggère de limiter cette profondeur. |
+| **CBO** (Coupling Between Objects) | Nombre de classes distinctes auxquelles une classe est couplée, de manière bidirectionnelle (Chidamber et Kemerer, 1994) | Selon la revue d'Isong et Obeten, CBO est la métrique la moins controversée pour prédire les fautes. Un CBO élevé fragilise la maintenabilité car un changement dans une classe couplée peut se propager (heuristique GRASP Faible Couplage). |
+| **LCOM** (Lack of Cohesion of Methods) | Nombre de paires de méthodes sans attributs communs moins le nombre de paires partageant des attributs, formule CK : max(0, \|P\| − \|Q\|) (Chidamber et Kemerer, 1994) | Mesure la cohésion syntaxique d'une classe. Un LCOM élevé révèle des méthodes qui n'opèrent pas sur les mêmes données, ce qui peut indiquer que la classe regroupe des responsabilités distinctes (violation du SRP). Cependant, comme souligné dans le cours, la cohésion syntaxique diffère de la cohésion sémantique — un LCOM=0 n'implique pas forcément une bonne conception. |
+
+**Justification du choix global :**
+
+Ce jeu de métriques couvre les trois dimensions fondamentales de la qualité de conception identifiées dans le cours : la **taille** (LOC, NOM, NOA), la **complexité** (WMC), le **couplage** (CBO) et la **cohésion** (LCOM). Ces dimensions correspondent directement aux métriques qui, selon les études empiriques, sont les plus significatives pour prédire la prédisposition aux fautes : CBO, WMC et SLOC.
+
+**Choix des seuils :**
+
+Les seuils utilisés pour la classification vert/orange/rouge sont basés sur les recommandations de la littérature :
+- **WMC** : vert ≤ 10, orange ≤ 20, rouge > 20
+- **CBO** : vert ≤ 4, orange ≤ 8, rouge > 8
+- **LCOM** : vert = 0, orange ≤ 3, rouge > 3
+- **DIT** : vert ≤ 2, orange ≤ 4, rouge > 4
 
 ### Question 2 — Calcul des métriques supplémentaires
 
