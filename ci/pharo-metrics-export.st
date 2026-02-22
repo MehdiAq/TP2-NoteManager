@@ -116,60 +116,41 @@ classes do: [ :each |
     "  Définition CK : nombre d'autres classes auxquelles la classe"
     "  est couplée, toutes directions confondues"
     "  (Chidamber & Kemerer, 1994)."
-    "  Natif : #queryAllOutgoingInvocations atTypeScope (Moose Chef)"
-    "          + #queryAllIncomingInvocations atTypeScope"
-    "  Fallback : parcours manuel des invocations et accès"
+    "  Calcul : parcours manuel bidirectionnel des invocations"
+    "  (outgoing + incoming) et des accès aux attributs."
+    "  Note : l'API native Moose Chef (queryAllOutgoingInvocations"
+    "  atTypeScope) ne résout pas correctement les dépendances"
+    "  dans le contexte FamixTypeScript en CI headless, donc le"
+    "  calcul manuel est utilisé en priorité."
     "================================================================"
-    cbo := [
-        | coupledClasses outgoing incoming |
-        coupledClasses := Set new.
-
-        "Dépendances sortantes via Moose Chef"
-        outgoing := [ (each queryAllOutgoingInvocations atTypeScope) asSet ]
-            on: Error do: [ :e | Set new ].
-        outgoing do: [ :cls |
-            (cls ~= each) ifTrue: [ coupledClasses add: cls ].
-        ].
-
-        "Dépendances entrantes via Moose Chef"
-        incoming := [ (each queryAllIncomingInvocations atTypeScope) asSet ]
-            on: Error do: [ :e | Set new ].
-        incoming do: [ :cls |
-            (cls ~= each) ifTrue: [ coupledClasses add: cls ].
-        ].
-
-        coupledClasses size
-    ] on: Error do: [ :e |
-        "Fallback : parcours manuel des invocations et accès aux attributs"
-        [ | coupled |
-            coupled := Set new.
-            each methods do: [ :m |
-                [ m outgoingInvocations do: [ :inv |
-                    | target |
-                    target := [ inv candidates ] on: Error do: [ :err | #() ].
-                    target do: [ :t |
-                        | owner |
-                        owner := [ t parentType ] on: Error do: [ :err | nil ].
-                        (owner notNil and: [ owner ~= each ]) ifTrue: [ coupled add: owner ].
-                    ].
-                ] ] on: Error do: [ :err | ].
-                [ m incomingInvocations do: [ :inv |
-                    | caller |
-                    caller := [ inv sender parentType ] on: Error do: [ :err | nil ].
-                    (caller notNil and: [ caller ~= each ]) ifTrue: [ coupled add: caller ].
-                ] ] on: Error do: [ :err | ].
-                [ m accesses do: [ :acc |
-                    | attr owner |
-                    attr := [ acc variable ] on: Error do: [ :err | nil ].
-                    owner := (attr notNil)
-                        ifTrue: [ [ attr parentType ] on: Error do: [ :err | nil ] ]
-                        ifFalse: [ nil ].
+    cbo := [ | coupled |
+        coupled := Set new.
+        each methods do: [ :m |
+            [ m outgoingInvocations do: [ :inv |
+                | target |
+                target := [ inv candidates ] on: Error do: [ :err | #() ].
+                target do: [ :t |
+                    | owner |
+                    owner := [ t parentType ] on: Error do: [ :err | nil ].
                     (owner notNil and: [ owner ~= each ]) ifTrue: [ coupled add: owner ].
-                ] ] on: Error do: [ :err | ].
-            ].
-            coupled size
-        ] on: Error do: [ :err | 0 ]
-    ].
+                ].
+            ] ] on: Error do: [ :err | ].
+            [ m incomingInvocations do: [ :inv |
+                | caller |
+                caller := [ inv sender parentType ] on: Error do: [ :err | nil ].
+                (caller notNil and: [ caller ~= each ]) ifTrue: [ coupled add: caller ].
+            ] ] on: Error do: [ :err | ].
+            [ m accesses do: [ :acc |
+                | attr owner |
+                attr := [ acc variable ] on: Error do: [ :err | nil ].
+                owner := (attr notNil)
+                    ifTrue: [ [ attr parentType ] on: Error do: [ :err | nil ] ]
+                    ifFalse: [ nil ].
+                (owner notNil and: [ owner ~= each ]) ifTrue: [ coupled add: owner ].
+            ] ] on: Error do: [ :err | ].
+        ].
+        coupled size
+    ] on: Error do: [ :e | 0 ].
 
     "================================================================"
     "  LCOM — Lack of Cohesion in Methods"

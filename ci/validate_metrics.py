@@ -387,16 +387,15 @@ def validate_cross_check(csv_rows, json_metrics):
                 f'{name}: DIT mismatch — CSV={csv_dit}, Python={expected["DIT"]}'
             )
 
-        # CBO tolerance: Pharo uses native Moose Chef (queryAllOutgoingInvocations
-        # atTypeScope) which may resolve coupling differently than Python's manual
-        # traversal of invocations/accesses. Tolerance raised to 3 to account for this.
+        # CBO: Pharo uses manual bidirectional traversal of invocations/accesses,
+        # same algorithm as Python. Minor differences possible due to error handling.
         cbo_diff = abs(csv_cbo - expected['CBO'])
-        if cbo_diff > 3:
+        if cbo_diff > 2:
             errors.append(
                 f'{name}: CBO mismatch — CSV={csv_cbo}, Python={expected["CBO"]} (diff={cbo_diff})'
             )
         elif cbo_diff > 0:
-            print(f'  [INFO] {name}: minor CBO difference (CSV={csv_cbo}, Python={expected["CBO"]}) — within tolerance (Moose Chef vs manual)')
+            print(f'  [INFO] {name}: minor CBO difference (CSV={csv_cbo}, Python={expected["CBO"]}) — within tolerance')
 
         # LCOM tolerance: Pharo uses native TLCOMMetrics trait (#lcom) when available,
         # falling back to manual CK calculation. The native implementation may differ
