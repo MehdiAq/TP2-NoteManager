@@ -103,20 +103,34 @@ export class SearchEngine implements ISearchEngine {
     this.searchCache.set(key, results);
   }
 
+  private getCachedResults(cacheKey: string): INote[] | null {
+    return this.searchCache.get(cacheKey) || null;
+  }
+
+  private ensureIndexesBuilt(notes: INote[]): void {
+    if (this.notesMap.size === 0 && notes.length > 0) {
+      this.buildIndexes(notes);
+    }
+  }
+
+  private mapNoteIdsToResults(noteIds: Set<string>): INote[] {
+    return Array.from(noteIds)
+      .map(id => this.notesMap.get(id))
+      .filter((note): note is INote => note !== undefined);
+  }
+
+  private addMatchesFromIndex(index: Map<string, Set<string>>, word: string, target: Set<string>): void {
+    index.get(word)?.forEach(id => target.add(id));
+  }
+
   /**
    * Recherche générale (titre, contenu, tags)
    */
   public search(notes: INote[], query: string): INote[] {
     const cacheKey = this.getCacheKey('general', query);
-    
-    if (this.searchCache.has(cacheKey)) {
-      return this.searchCache.get(cacheKey)!;
-    }
-
-    // Si les index ne sont pas construits, les construire
-    if (this.notesMap.size === 0 && notes.length > 0) {
-      this.buildIndexes(notes);
-    }
+    const cachedResults = this.getCachedResults(cacheKey);
+    if (cachedResults) return cachedResults;
+    this.ensureIndexesBuilt(notes);
 
     const lowerQuery = query.toLowerCase();
     const queryWords = this.extractWords(query);
@@ -124,14 +138,8 @@ export class SearchEngine implements ISearchEngine {
 
     // Recherche par mots-clés dans le contenu et le titre
     queryWords.forEach(word => {
-      // Chercher dans le contenu
-      if (this.wordIndex.has(word)) {
-        this.wordIndex.get(word)!.forEach(id => matchedNoteIds.add(id));
-      }
-      // Chercher dans le titre
-      if (this.titleIndex.has(word)) {
-        this.titleIndex.get(word)!.forEach(id => matchedNoteIds.add(id));
-      }
+      this.addMatchesFromIndex(this.wordIndex, word, matchedNoteIds);
+      this.addMatchesFromIndex(this.titleIndex, word, matchedNoteIds);
     });
 
     // Chercher dans les tags
@@ -142,9 +150,7 @@ export class SearchEngine implements ISearchEngine {
     });
 
     // Convertir les IDs en notes
-    const results = Array.from(matchedNoteIds)
-      .map(id => this.notesMap.get(id))
-      .filter((note): note is INote => note !== undefined);
+    const results = this.mapNoteIdsToResults(matchedNoteIds);
 
     this.addToCache(cacheKey, results);
     return results;
@@ -155,22 +161,13 @@ export class SearchEngine implements ISearchEngine {
    */
   public searchByTag(notes: INote[], tag: string): INote[] {
     const cacheKey = this.getCacheKey('tag', tag);
-    
-    if (this.searchCache.has(cacheKey)) {
-      return this.searchCache.get(cacheKey)!;
-    }
-
-    // Si les index ne sont pas construits, les construire
-    if (this.notesMap.size === 0 && notes.length > 0) {
-      this.buildIndexes(notes);
-    }
+    const cachedResults = this.getCachedResults(cacheKey);
+    if (cachedResults) return cachedResults;
+    this.ensureIndexesBuilt(notes);
 
     const normalizedTag = tag.toLowerCase();
     const noteIds = this.tagIndex.get(normalizedTag) || new Set();
-    
-    const results = Array.from(noteIds)
-      .map(id => this.notesMap.get(id))
-      .filter((note): note is INote => note !== undefined);
+    const results = this.mapNoteIdsToResults(noteIds);
 
     this.addToCache(cacheKey, results);
     return results;
@@ -181,23 +178,15 @@ export class SearchEngine implements ISearchEngine {
    */
   public searchByTitle(notes: INote[], title: string): INote[] {
     const cacheKey = this.getCacheKey('title', title);
-    
-    if (this.searchCache.has(cacheKey)) {
-      return this.searchCache.get(cacheKey)!;
-    }
-
-    // Si les index ne sont pas construits, les construire
-    if (this.notesMap.size === 0 && notes.length > 0) {
-      this.buildIndexes(notes);
-    }
+    const cachedResults = this.getCachedResults(cacheKey);
+    if (cachedResults) return cachedResults;
+    this.ensureIndexesBuilt(notes);
 
     const titleWords = this.extractWords(title);
     const matchedNoteIds = new Set<string>();
 
     titleWords.forEach(word => {
-      if (this.titleIndex.has(word)) {
-        this.titleIndex.get(word)!.forEach(id => matchedNoteIds.add(id));
-      }
+      this.addMatchesFromIndex(this.titleIndex, word, matchedNoteIds);
     });
 
     // Filtrer pour ne garder que les notes dont le titre contient vraiment la requête
@@ -217,23 +206,15 @@ export class SearchEngine implements ISearchEngine {
    */
   public searchByContent(notes: INote[], content: string): INote[] {
     const cacheKey = this.getCacheKey('content', content);
-    
-    if (this.searchCache.has(cacheKey)) {
-      return this.searchCache.get(cacheKey)!;
-    }
-
-    // Si les index ne sont pas construits, les construire
-    if (this.notesMap.size === 0 && notes.length > 0) {
-      this.buildIndexes(notes);
-    }
+    const cachedResults = this.getCachedResults(cacheKey);
+    if (cachedResults) return cachedResults;
+    this.ensureIndexesBuilt(notes);
 
     const contentWords = this.extractWords(content);
     const matchedNoteIds = new Set<string>();
 
     contentWords.forEach(word => {
-      if (this.wordIndex.has(word)) {
-        this.wordIndex.get(word)!.forEach(id => matchedNoteIds.add(id));
-      }
+      this.addMatchesFromIndex(this.wordIndex, word, matchedNoteIds);
     });
 
     // Filtrer pour ne garder que les notes dont le contenu contient vraiment la requête
@@ -257,14 +238,9 @@ export class SearchEngine implements ISearchEngine {
       tags.join(',')
     );
     
-    if (this.searchCache.has(cacheKey)) {
-      return this.searchCache.get(cacheKey)!;
-    }
-
-    // Si les index ne sont pas construits, les construire
-    if (this.notesMap.size === 0 && notes.length > 0) {
-      this.buildIndexes(notes);
-    }
+    const cachedResults = this.getCachedResults(cacheKey);
+    if (cachedResults) return cachedResults;
+    this.ensureIndexesBuilt(notes);
 
     const normalizedTags = tags.map(t => t.toLowerCase());
     const tagSets = normalizedTags
@@ -292,9 +268,7 @@ export class SearchEngine implements ISearchEngine {
       });
     }
 
-    const results = Array.from(matchedNoteIds)
-      .map(id => this.notesMap.get(id))
-      .filter((note): note is INote => note !== undefined);
+    const results = this.mapNoteIdsToResults(matchedNoteIds);
 
     this.addToCache(cacheKey, results);
     return results;

@@ -10,21 +10,21 @@ export class CLIController {
 
   public createNote(title: string, content: string, tags: string[]): void {
     const note = this.noteService.createNote(title, content, tags);
-    console.log('✓ Note créée avec succès!');
-    console.log(`ID: ${note.getId()}`);
-    console.log(`Titre: ${note.getTitle()}`);
-    console.log(`Tags: ${note.getTags().join(', ') || 'Aucun'}`);
+    this.printSuccess('Note créée avec succès!');
+    this.printLine(`ID: ${note.getId()}`);
+    this.printLine(`Titre: ${note.getTitle()}`);
+    this.printLine(`Tags: ${note.getTags().join(', ') || 'Aucun'}`);
   }
 
   public listNotes(verbose: boolean = false): void {
     const notes = this.noteService.getAllNotes();
 
     if (notes.length === 0) {
-      console.log('Aucune note trouvée.');
+      this.printLine('Aucune note trouvée.');
       return;
     }
 
-    console.log(`\n${notes.length} note(s) trouvée(s):\n`);
+    this.printLine(`\n${notes.length} note(s) trouvée(s):\n`);
 
     notes.forEach((note, index) => {
       console.log(`[${index + 1}] ${note.getTitle()}`);
@@ -52,7 +52,7 @@ export class CLIController {
     const note = this.noteService.getNoteById(id);
 
     if (!note) {
-      console.log(`✗ Aucune note trouvée avec l'ID "${id}".`);
+      this.printError(`Aucune note trouvée avec l'ID "${id}".`);
       return;
     }
 
@@ -84,7 +84,7 @@ export class CLIController {
     const results = this.noteService.searchNotes(query);
 
     if (results.length === 0) {
-      console.log(`Aucune note trouvée pour "${query}".`);
+      this.printLine(`Aucune note trouvée pour "${query}".`);
       return;
     }
 
@@ -108,7 +108,7 @@ export class CLIController {
     const results = this.noteService.getNotesByTag(tag);
 
     if (results.length === 0) {
-      console.log(`Aucune note avec l'étiquette "${tag}".`);
+      this.printLine(`Aucune note avec l'étiquette "${tag}".`);
       return;
     }
 
@@ -128,28 +128,30 @@ export class CLIController {
     const deleted = await this.noteService.deleteNote(id);
 
     if (deleted) {
-      console.log('✓ Note supprimée avec succès!');
+      this.printSuccess('Note supprimée avec succès!');
     } else {
-      console.log(`✗ Aucune note trouvée avec l'ID "${id}".`);
+      this.printError(`Aucune note trouvée avec l'ID "${id}".`);
     }
   }
 
   public exportNotes(path: string): void {
-    try {
+    this.executeSync(
+      () => {
       this.noteService.exportNotes(path);
-      console.log(`✓ Notes exportées avec succès vers ${path}`);
-    } catch (error) {
-      console.error(`✗ Erreur lors de l'export: ${error}`);
-    }
+        this.printSuccess(`Notes exportées avec succès vers ${path}`);
+      },
+      'Erreur lors de l\'export'
+    );
   }
 
   public importNotes(path: string, merge: boolean): void {
-    try {
+    this.executeSync(
+      () => {
       this.noteService.importNotes(path, merge);
-      console.log(`✓ Notes importées avec succès depuis ${path}`);
-    } catch (error) {
-      console.error(`✗ Erreur lors de l'import: ${error}`);
-    }
+        this.printSuccess(`Notes importées avec succès depuis ${path}`);
+      },
+      'Erreur lors de l\'import'
+    );
   }
 
   // ========== Commandes pour les backups ==========
@@ -158,34 +160,35 @@ export class CLIController {
     const backupService = this.noteService.getBackupService();
     
     if (!backupService) {
-      console.log('✗ Le service de backup n\'est pas configuré.');
+      this.printError('Le service de backup n\'est pas configuré.');
       return;
     }
 
-    try {
+    await this.executeAsync(
+      async () => {
       const metadata = await backupService.createBackup();
-      console.log('✓ Backup créé avec succès!');
-      console.log(`ID: ${metadata.id}`);
-      console.log(`Date: ${metadata.timestamp.toLocaleString()}`);
-      console.log(`Notes sauvegardées: ${metadata.notesCount}`);
-      console.log(`Checksum: ${metadata.checksum.substring(0, 16)}...`);
-    } catch (error) {
-      console.error(`✗ Erreur lors de la création du backup: ${error}`);
-    }
+        this.printSuccess('Backup créé avec succès!');
+        this.printLine(`ID: ${metadata.id}`);
+        this.printLine(`Date: ${metadata.timestamp.toLocaleString()}`);
+        this.printLine(`Notes sauvegardées: ${metadata.notesCount}`);
+        this.printLine(`Checksum: ${metadata.checksum.substring(0, 16)}...`);
+      },
+      'Erreur lors de la création du backup'
+    );
   }
 
   public listBackups(): void {
     const backupService = this.noteService.getBackupService();
     
     if (!backupService) {
-      console.log('✗ Le service de backup n\'est pas configuré.');
+      this.printError('Le service de backup n\'est pas configuré.');
       return;
     }
 
     const backups = backupService.listBackups();
 
     if (backups.length === 0) {
-      console.log('Aucun backup trouvé.');
+      this.printLine('Aucun backup trouvé.');
       return;
     }
 
@@ -204,41 +207,43 @@ export class CLIController {
     const backupService = this.noteService.getBackupService();
     
     if (!backupService) {
-      console.log('✗ Le service de backup n\'est pas configuré.');
+      this.printError('Le service de backup n\'est pas configuré.');
       return;
     }
 
-    try {
+    await this.executeAsync(
+      async () => {
       const restored = await backupService.restoreBackup(backupId);
       
       if (restored) {
-        console.log('✓ Backup restauré avec succès!');
-        console.log('Les notes ont été rechargées depuis le backup.');
+          this.printSuccess('Backup restauré avec succès!');
+          this.printLine('Les notes ont été rechargées depuis le backup.');
       }
-    } catch (error) {
-      console.error(`✗ Erreur lors de la restauration: ${error}`);
-    }
+      },
+      'Erreur lors de la restauration'
+    );
   }
 
   public async verifyBackup(backupId: string): Promise<void> {
     const backupService = this.noteService.getBackupService();
     
     if (!backupService) {
-      console.log('✗ Le service de backup n\'est pas configuré.');
+      this.printError('Le service de backup n\'est pas configuré.');
       return;
     }
 
-    try {
+    await this.executeAsync(
+      async () => {
       const isValid = await backupService.verifyBackupIntegrity(backupId);
       
       if (isValid) {
-        console.log('✓ L\'intégrité du backup est validée.');
+          this.printSuccess('L\'intégrité du backup est validée.');
       } else {
-        console.log('✗ Le backup est corrompu ou introuvable.');
+          this.printError('Le backup est corrompu ou introuvable.');
       }
-    } catch (error) {
-      console.error(`✗ Erreur lors de la vérification: ${error}`);
-    }
+      },
+      'Erreur lors de la vérification'
+    );
   }
 
   // ========== Commandes pour les attachements ==========
@@ -247,34 +252,35 @@ export class CLIController {
     const attachmentService = this.noteService.getAttachmentService();
     
     if (!attachmentService) {
-      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      this.printError('Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
-    try {
+    await this.executeAsync(
+      async () => {
       const attachment = await attachmentService.attachFile(noteId, filePath);
-      console.log('✓ Fichier attaché avec succès!');
-      console.log(`ID: ${attachment.id}`);
-      console.log(`Nom: ${attachment.fileName}`);
-      console.log(`Type: ${attachment.type}`);
-      console.log(`Taille: ${(attachment.size / 1024).toFixed(2)} KB`);
-    } catch (error) {
-      console.error(`✗ Erreur lors de l'attachement: ${error}`);
-    }
+        this.printSuccess('Fichier attaché avec succès!');
+        this.printLine(`ID: ${attachment.id}`);
+        this.printLine(`Nom: ${attachment.fileName}`);
+        this.printLine(`Type: ${attachment.type}`);
+        this.printLine(`Taille: ${(attachment.size / 1024).toFixed(2)} KB`);
+      },
+      'Erreur lors de l\'attachement'
+    );
   }
 
   public listAttachments(noteId: string): void {
     const attachmentService = this.noteService.getAttachmentService();
     
     if (!attachmentService) {
-      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      this.printError('Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
     const attachments = attachmentService.listAttachments(noteId);
 
     if (attachments.length === 0) {
-      console.log(`Aucune pièce jointe pour la note "${noteId}".`);
+      this.printLine(`Aucune pièce jointe pour la note "${noteId}".`);
       return;
     }
 
@@ -294,20 +300,49 @@ export class CLIController {
     const attachmentService = this.noteService.getAttachmentService();
     
     if (!attachmentService) {
-      console.log('✗ Le service d\'attachements n\'est pas configuré.');
+      this.printError('Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
-    try {
+    await this.executeAsync(
+      async () => {
       const detached = await attachmentService.detachFile(noteId, attachmentId);
       
       if (detached) {
-        console.log('✓ Fichier détaché avec succès!');
+          this.printSuccess('Fichier détaché avec succès!');
       } else {
-        console.log('✗ Attachement introuvable ou ID de note incorrect.');
+          this.printError('Attachement introuvable ou ID de note incorrect.');
       }
+      },
+      'Erreur lors du détachement'
+    );
+  }
+
+  private printLine(message: string): void {
+    console.log(message);
+  }
+
+  private printSuccess(message: string): void {
+    this.printLine(`✓ ${message}`);
+  }
+
+  private printError(message: string): void {
+    console.log(`✗ ${message}`);
+  }
+
+  private executeSync(action: () => void, context: string): void {
+    try {
+      action();
     } catch (error) {
-      console.error(`✗ Erreur lors du détachement: ${error}`);
+      console.error(`✗ ${context}: ${error}`);
+    }
+  }
+
+  private async executeAsync(action: () => Promise<void>, context: string): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      console.error(`✗ ${context}: ${error}`);
     }
   }
 }
