@@ -327,22 +327,22 @@ export class CLIController {
   }
 
   private printError(message: string): void {
-    console.log(`✗ ${message}`);
+    console.error(`✗ ${message}`);
   }
 
-  private executeSync(action: () => void, context: string): void {
+  private executeSync(action: () => void, errorContext: string): void {
     try {
       action();
     } catch (error) {
-      console.error(`✗ ${context}: ${error}`);
+      console.error(`✗ ${errorContext}: ${error}`);
     }
   }
 
-  private async executeAsync(action: () => Promise<void>, context: string): Promise<void> {
+  private async executeAsync(action: () => Promise<void>, errorContext: string): Promise<void> {
     try {
       await action();
     } catch (error) {
-      console.error(`✗ ${context}: ${error}`);
+      console.error(`✗ ${errorContext}: ${error}`);
     }
   }
 }

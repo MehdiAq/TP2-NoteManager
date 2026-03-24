@@ -8,7 +8,7 @@ type AutoBackupConfig = {
 
 export class AutoBackupCoordinator {
   private readonly backupService?: IBackupService;
-  private readonly config: AutoBackupConfig = {
+  private config: AutoBackupConfig = {
     enabled: false,
     maxModifications: 10,
     maxBackups: 5
