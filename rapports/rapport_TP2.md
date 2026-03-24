@@ -169,6 +169,34 @@ Le DIT moyen de 0.6 ([Figure 8](#figure-8)) indique que le projet favorise la co
 
 Le WMC moyen du projet (20.0) se situe exactement au seuil critique, avec 6 classes sur 12 en zone rouge. Cela reflète une caractéristique du vibe coding : l'IA génère du code fonctionnel mais ne refactorise pas spontanément. Les classes générées pour les exigences FURPS (BackupService, AttachmentService, SearchEngine) sont toutes en zone rouge pour le WMC, ce qui suggère que l'ajout de fonctionnalités par vibe coding accumule de la dette technique sans mécanisme de simplification.
 
+### Complément — Plan de réusinage basé sur le CSV des métriques
+
+À partir des valeurs fournies (WMC, CBO, LCOM, LOC), les priorités de conception sont les suivantes :
+
+1. **CLIController (WMC=44, LOC=310, CBO=6)**  
+   Problème : classe « God Class » mélangeant orchestration, formatage et gestion d'erreurs.  
+   Changement proposé : appliquer **GRASP Forte Cohésion** et le patron **Commande (GoF)** en séparant chaque commande (`create`, `list`, `search`, `backup`, `attach`) dans des handlers dédiés.
+
+2. **NoteService (CBO=9, WMC=33)**  
+   Problème : couplage excessif avec plusieurs sous-systèmes.  
+   Changement proposé : renforcer **DIP (SOLID)** via interfaces de ports applicatifs et introduire une **façade** pour réduire les dépendances directes du service principal.
+
+3. **SearchEngine (LOC=297, WMC=33, LOC/M=27)**  
+   Problème : méthodes longues et complexes.  
+   Changement proposé : appliquer l'heuristique « **Extract Method** » et séparer l'indexation (construction des index) de l'exécution des requêtes dans des composants distincts.
+
+4. **BackupService (WMC=36, LCOM=40) et AttachmentService (WMC=26, LCOM=14)**  
+   Problème : responsabilités multiples dans une même classe (I/O, validation, calcul d'empreinte, rotation).  
+   Changement proposé : appliquer **SRP (SOLID)** avec extraction de services techniques (`ChecksumService`, `BackupRetentionPolicy`, `AttachmentTypeValidator`, etc.).
+
+5. **Note (LCOM=56)**  
+   Problème : faible cohésion syntaxique, malgré une cohésion sémantique correcte.  
+   Changement proposé : isoler les comportements spécialisés (ex. gestion des pièces jointes) dans des objets dédiés pour diminuer la dispersion des responsabilités.
+
+**Ordre recommandé d'exécution** :  
+1) CLIController, 2) NoteService, 3) SearchEngine, 4) BackupService/AttachmentService, 5) Note.  
+Cet ordre réduit d'abord la complexité de pilotage (WMC/CBO), puis traite la cohésion interne (LCOM).
+
 ---
 
 ## Annexes
