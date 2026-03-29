@@ -27,6 +27,8 @@ SEUILS = {
     'DIT':         {'vert': 2, 'orange': 4},
 }
 
+METRIC_COLUMNS = ['Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code', 'WMC', 'DIT', 'CBO', 'LCOM']
+
 
 def couleur_seuil(value, metric_key):
     """Return green/orange/red colour based on thresholds."""
@@ -744,12 +746,188 @@ def page_conclusion(pdf, df):
 
 
 # ============================================================
+# Mode PR : Graphiques comparatifs (PR vs main) — Pages 1 à 6
+# ============================================================
+
+def prepare_comparison_df(df_pr, df_main):
+    left = df_pr[['Nom_Classe'] + METRIC_COLUMNS].copy()
+    right = df_main[['Nom_Classe'] + METRIC_COLUMNS].copy()
+    merged = pd.merge(
+        left, right, on='Nom_Classe', how='outer', suffixes=('_pr', '_main'), indicator=True
+    ).fillna(0)
+    for col in merged.columns:
+        if col not in ['Nom_Classe', '_merge']:
+            merged[col] = pd.to_numeric(merged[col], errors='coerce').fillna(0)
+    merged['Classe_Label'] = merged['Nom_Classe']
+    merged.loc[merged['_merge'] == 'left_only', 'Classe_Label'] = (
+        merged.loc[merged['_merge'] == 'left_only', 'Nom_Classe'] + ' (nouvelle)'
+    )
+    merged.loc[merged['_merge'] == 'right_only', 'Classe_Label'] = (
+        merged.loc[merged['_merge'] == 'right_only', 'Nom_Classe'] + ' (supprimée)'
+    )
+    return merged.sort_values('Nom_Classe').reset_index(drop=True)
+
+
+def format_float_value(value):
+    return f'{value:.1f}'.rstrip('0').rstrip('.')
+
+
+def page_histogramme_compare(pdf, df_pr, df_main):
+    fig = plt.figure(figsize=(11, 8.5))
+    fig.text(0.5, 0.95, '1. Comparaison PR vs main — LOC, NOM, NOA',
+             ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
+    merged = prepare_comparison_df(df_pr, df_main)
+
+    metric_specs = [
+        ('Lignes_de_Code', 'LOC', '#e74c3c'),
+        ('Nb_Methodes', 'NOM', '#3498db'),
+        ('Nb_Attributs', 'NOA', '#2ecc71')
+    ]
+
+    x = np.arange(len(merged))
+    width = 0.35
+    for idx, (col, label, color) in enumerate(metric_specs):
+        ax = fig.add_axes([0.08, 0.67 - idx * 0.2, 0.88, 0.16])
+        ax.bar(x - width/2, merged[f'{col}_main'], width, label='main', color='#bdc3c7', alpha=0.8)
+        ax.bar(x + width/2, merged[f'{col}_pr'], width, label='PR', color=color, alpha=0.85)
+        ax.set_ylabel(label, fontsize=9)
+        ax.grid(axis='y', alpha=0.25)
+        if idx == 0:
+            ax.legend(fontsize=9, loc='upper right')
+        if idx < 2:
+            ax.set_xticks([])
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels(merged['Classe_Label'], rotation=45, ha='right', fontsize=8)
+
+    ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.12])
+    ax_desc.axis('off')
+    ax_desc.text(
+        0.02, 0.95,
+        "Comparaison directe des métriques structurelles entre la PR (couleurs) et la branche main (gris). "
+        "Chaque barre permet de visualiser l'impact du refactoring pour chaque classe.",
+        ha='left', va='top', fontsize=10, color='#2c3e50', wrap=True, linespacing=1.5,
+        transform=ax_desc.transAxes
+    )
+
+    pdf.savefig(fig)
+    save_graph(fig, '01_histogramme.png')
+    plt.close(fig)
+
+
+def page_scatter_compare(pdf, df_pr, df_main):
+    fig = plt.figure(figsize=(11, 8.5))
+    fig.text(0.5, 0.95, '2. Comparaison PR vs main — Dispersion LOC vs NOM',
+             ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
+    ax = fig.add_axes([0.08, 0.30, 0.84, 0.60])
+    merged = prepare_comparison_df(df_pr, df_main)
+
+    ax.scatter(merged['Nb_Methodes_main'], merged['Lignes_de_Code_main'],
+               c='#7f8c8d', label='main', s=80, alpha=0.8, edgecolors='black', linewidth=0.4)
+    ax.scatter(merged['Nb_Methodes_pr'], merged['Lignes_de_Code_pr'],
+               c='#3498db', label='PR', s=80, alpha=0.8, edgecolors='black', linewidth=0.4)
+
+    for _, row in merged.iterrows():
+        ax.plot([row['Nb_Methodes_main'], row['Nb_Methodes_pr']],
+                [row['Lignes_de_Code_main'], row['Lignes_de_Code_pr']],
+                color='#95a5a6', alpha=0.5, linewidth=1)
+        ax.annotate(row['Classe_Label'], (row['Nb_Methodes_pr'], row['Lignes_de_Code_pr']),
+                    xytext=(4, 4), textcoords='offset points', fontsize=8)
+
+    ax.set_xlabel('Nombre de méthodes (NOM)', fontsize=11)
+    ax.set_ylabel('Lignes de code (LOC)', fontsize=11)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9)
+
+    pdf.savefig(fig)
+    save_graph(fig, '02_scatter.png')
+    plt.close(fig)
+
+
+def page_densite_compare(pdf, df_pr, df_main):
+    fig = plt.figure(figsize=(11, 8.5))
+    fig.text(0.5, 0.95, '3. Comparaison PR vs main — Densité de code (LOC / méthode)',
+             ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
+    ax = fig.add_axes([0.15, 0.28, 0.78, 0.62])
+    merged = prepare_comparison_df(df_pr, df_main).copy()
+    merged['densite_main'] = merged['Lignes_de_Code_main'] / merged['Nb_Methodes_main'].replace(0, 1)
+    merged['densite_pr'] = merged['Lignes_de_Code_pr'] / merged['Nb_Methodes_pr'].replace(0, 1)
+    merged = merged.sort_values('densite_pr', ascending=True)
+
+    y = np.arange(len(merged))
+    h = 0.35
+    ax.barh(y - h/2, merged['densite_main'], h, color='#bdc3c7', alpha=0.85, label='main')
+    ax.barh(y + h/2, merged['densite_pr'], h, color='#e67e22', alpha=0.9, label='PR')
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
+    ax.set_xlabel('LOC par méthode', fontsize=11)
+    ax.grid(axis='x', alpha=0.3)
+    ax.legend(fontsize=9, loc='upper right')
+
+    for yi, val_main, val_pr in zip(y, merged['densite_main'], merged['densite_pr']):
+        ax.text(val_main + 0.05, yi - h/2, f'{val_main:.1f}', va='center', fontsize=8)
+        ax.text(val_pr + 0.05, yi + h/2, f'{val_pr:.1f}', va='center', fontsize=8)
+
+    ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.18])
+    ax_desc.axis('off')
+    ax_desc.text(
+        0.02, 0.95,
+        "Comparaison de la densité de code (LOC/méthode) entre la PR et main pour chaque classe. "
+        "Ce graphe met en évidence l'effet du refactoring sur la taille moyenne des méthodes.",
+        ha='left', va='top', fontsize=10, color='#2c3e50', wrap=True, linespacing=1.5,
+        transform=ax_desc.transAxes
+    )
+
+    pdf.savefig(fig)
+    save_graph(fig, '03_densite.png')
+    plt.close(fig)
+
+
+def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, output_name, color_pr):
+    fig = plt.figure(figsize=(11, 8.5))
+    fig.text(0.5, 0.95, title, ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
+    ax = fig.add_axes([0.15, 0.28, 0.78, 0.62])
+    merged = prepare_comparison_df(df_pr, df_main).sort_values(f'{metric_col}_pr', ascending=True)
+
+    y = np.arange(len(merged))
+    h = 0.35
+    ax.barh(y - h/2, merged[f'{metric_col}_main'], h, color='#bdc3c7', alpha=0.85, label='main')
+    ax.barh(y + h/2, merged[f'{metric_col}_pr'], h, color=color_pr, alpha=0.9, label='PR')
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
+    ax.set_xlabel(xlabel, fontsize=11)
+    ax.grid(axis='x', alpha=0.3)
+    ax.legend(fontsize=9, loc='upper right')
+
+    for yi, val_main, val_pr in zip(y, merged[f'{metric_col}_main'], merged[f'{metric_col}_pr']):
+        ax.text(val_main + 0.05, yi - h/2, format_float_value(val_main), va='center', fontsize=8)
+        ax.text(val_pr + 0.05, yi + h/2, format_float_value(val_pr), va='center', fontsize=8)
+
+    ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.18])
+    ax_desc.axis('off')
+    ax_desc.text(
+        0.02, 0.95,
+        "Comparaison visuelle PR vs main dans le même graphe. Les barres PR sont colorées et les barres "
+        "main sont en gris, afin d'illustrer l'effet du refactoring sur chaque classe.",
+        ha='left', va='top', fontsize=10, color='#2c3e50', wrap=True, linespacing=1.5,
+        transform=ax_desc.transAxes
+    )
+
+    pdf.savefig(fig)
+    save_graph(fig, output_name)
+    plt.close(fig)
+
+
+# ============================================================
 # Main
 # ============================================================
 
 def main():
     csv_path = sys.argv[1] if len(sys.argv) > 1 else 'export_metrics.csv'
     output_path = sys.argv[2] if len(sys.argv) > 2 else 'rapport_metriques.pdf'
+    baseline_main_path = sys.argv[3] if len(sys.argv) > 3 else None
 
     print(f"Chargement du CSV : {csv_path}")
     df = load_csv(csv_path)
@@ -757,23 +935,56 @@ def main():
     print(df.to_string(index=False))
     print()
 
+    is_pr_compare = baseline_main_path is not None and os.path.exists(baseline_main_path)
+
     print(f"Génération du rapport PDF : {output_path}")
     with PdfPages(output_path) as pdf:
-        page_titre(pdf)
-        page_histogramme(pdf, df)
-        page_scatter(pdf, df)
-        page_densite(pdf, df)
-        page_wmc(pdf, df)
-        page_cbo(pdf, df)
-        page_lcom(pdf, df)
-        page_dit(pdf, df)
-        page_radar(pdf, df)
-        page_tableau(pdf, df)
-        page_conclusion(pdf, df)
-
-    print(f"Rapport généré avec succès : {output_path} (11 pages)")
+        if is_pr_compare:
+            print(f"Mode PR comparatif activé avec baseline main : {baseline_main_path}")
+            df_main = load_csv(baseline_main_path)
+            page_titre(pdf)
+            page_histogramme_compare(pdf, df, df_main)
+            page_scatter_compare(pdf, df, df_main)
+            page_densite_compare(pdf, df, df_main)
+            page_compare_metric_barh(
+                pdf, df, df_main,
+                metric_col='WMC',
+                title='4. Comparaison PR vs main — WMC',
+                xlabel='WMC',
+                output_name='04_wmc.png',
+                color_pr='#9b59b6'
+            )
+            page_compare_metric_barh(
+                pdf, df, df_main,
+                metric_col='CBO',
+                title='5. Comparaison PR vs main — CBO',
+                xlabel='CBO',
+                output_name='05_cbo.png',
+                color_pr='#16a085'
+            )
+            page_compare_metric_barh(
+                pdf, df, df_main,
+                metric_col='LCOM',
+                title='6. Comparaison PR vs main — LCOM',
+                xlabel='LCOM',
+                output_name='06_lcom.png',
+                color_pr='#c0392b'
+            )
+            print(f"Rapport généré avec succès : {output_path} (7 pages: titre + graphes 1 à 6 comparatifs)")
+        else:
+            page_titre(pdf)
+            page_histogramme(pdf, df)
+            page_scatter(pdf, df)
+            page_densite(pdf, df)
+            page_wmc(pdf, df)
+            page_cbo(pdf, df)
+            page_lcom(pdf, df)
+            page_dit(pdf, df)
+            page_radar(pdf, df)
+            page_tableau(pdf, df)
+            page_conclusion(pdf, df)
+            print(f"Rapport généré avec succès : {output_path} (11 pages)")
 
 
 if __name__ == '__main__':
     main()
-
