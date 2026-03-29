@@ -127,9 +127,13 @@ jobs:
 
       # ============================================================
       # STEP 7: Commit results to a dedicated branch (ci-results)
+      # - push main/master   -> generated/main/
+      # - pull request       -> generated/pr-<number>/
       # ============================================================
       - name: Commit generated files to ci-results branch
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -145,33 +149,44 @@ jobs:
           fi
           
           # Fetch ci-results branch if it exists, or create an orphan
-          git fetch origin ci-results || true
-          if git rev-parse --verify origin/ci-results >/dev/null 2>&1; then
-            git checkout ci-results
+          if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
+            git fetch origin ci-results:refs/remotes/origin/ci-results
+            git checkout -B ci-results origin/ci-results
           else
             git checkout --orphan ci-results
             git rm -rf . 2>/dev/null || true
           fi
           
-          # Copy files into the branch (clean first)
-          rm -rf generated
-          mkdir -p generated/graphs
-          cp /tmp/ci-output/model.json generated/
-          cp /tmp/ci-output/export_metrics.csv generated/
-          cp /tmp/ci-output/rapport_metriques.pdf generated/
+          # Select destination path based on trigger
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TARGET_DIR="generated/pr-${{ github.event.pull_request.number }}"
+          else
+            TARGET_DIR="generated/main"
+          fi
+
+          # Copy files into the branch (clean target only)
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR/graphs"
+          cp /tmp/ci-output/model.json "$TARGET_DIR/"
+          cp /tmp/ci-output/export_metrics.csv "$TARGET_DIR/"
+          cp /tmp/ci-output/rapport_metriques.pdf "$TARGET_DIR/"
           if ls /tmp/ci-output/graphs/*.png >/dev/null 2>&1; then
-            cp /tmp/ci-output/graphs/*.png generated/graphs/
+            cp /tmp/ci-output/graphs/*.png "$TARGET_DIR/graphs/"
           fi
           
           # Root README for the ci-results branch
           python3 /tmp/ci-output/generate_ci_results_readme.py
           
-          git add README.md generated/
+          git add README.md "$TARGET_DIR"
           
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
             COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-            git commit -m "ci: update analysis results from ${COMMIT_SHA} [skip ci]"
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              git commit -m "ci: update PR #${{ github.event.pull_request.number }} analysis results from ${COMMIT_SHA} [skip ci]"
+            else
+              git commit -m "ci: update main analysis results from ${COMMIT_SHA} [skip ci]"
+            fi
             git push origin ci-results
           fi
