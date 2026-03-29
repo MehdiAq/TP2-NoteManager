@@ -150,6 +150,15 @@ jobs:
       # - push main/master   -> generated/main/
       # - pull request       -> generated/pr-<number>/
       # ============================================================
+      - name: Check ci-results branch existence
+        id: ci_results_branch
+        run: |
+          if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit generated files to ci-results branch
         if: |
           github.event_name == 'push' ||
@@ -169,7 +178,7 @@ jobs:
           fi
           
           # Fetch ci-results branch if it exists, or create an orphan
-          if git ls-remote --exit-code --heads origin ci-results >/dev/null 2>&1; then
+          if [ "${{ steps.ci_results_branch.outputs.exists }}" = "true" ]; then
             git fetch origin ci-results:refs/remotes/origin/ci-results
             git checkout -B ci-results origin/ci-results
           else

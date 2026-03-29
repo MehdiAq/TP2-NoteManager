@@ -27,6 +27,8 @@ SEUILS = {
     'DIT':         {'vert': 2, 'orange': 4},
 }
 
+METRIC_COLUMNS = ['Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code', 'WMC', 'DIT', 'CBO', 'LCOM']
+
 
 def couleur_seuil(value, metric_key):
     """Return green/orange/red colour based on thresholds."""
@@ -748,9 +750,8 @@ def page_conclusion(pdf, df):
 # ============================================================
 
 def prepare_comparison_df(df_pr, df_main):
-    metric_cols = ['Nb_Methodes', 'Nb_Attributs', 'Lignes_de_Code', 'WMC', 'DIT', 'CBO', 'LCOM']
-    left = df_pr[['Nom_Classe'] + metric_cols].copy()
-    right = df_main[['Nom_Classe'] + metric_cols].copy()
+    left = df_pr[['Nom_Classe'] + METRIC_COLUMNS].copy()
+    right = df_main[['Nom_Classe'] + METRIC_COLUMNS].copy()
     merged = pd.merge(
         left, right, on='Nom_Classe', how='outer', suffixes=('_pr', '_main'), indicator=True
     ).fillna(0)
@@ -767,7 +768,7 @@ def prepare_comparison_df(df_pr, df_main):
     return merged.sort_values('Nom_Classe').reset_index(drop=True)
 
 
-def format_metric_value(value):
+def format_float_value(value):
     return f'{value:.1f}'.rstrip('0').rstrip('.')
 
 
@@ -901,8 +902,8 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
     ax.legend(fontsize=9, loc='upper right')
 
     for yi, val_main, val_pr in zip(y, merged[f'{metric_col}_main'], merged[f'{metric_col}_pr']):
-        ax.text(val_main + 0.05, yi - h/2, format_metric_value(val_main), va='center', fontsize=8)
-        ax.text(val_pr + 0.05, yi + h/2, format_metric_value(val_pr), va='center', fontsize=8)
+        ax.text(val_main + 0.05, yi - h/2, format_float_value(val_main), va='center', fontsize=8)
+        ax.text(val_pr + 0.05, yi + h/2, format_float_value(val_pr), va='center', fontsize=8)
 
     ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.18])
     ax_desc.axis('off')
