@@ -9,6 +9,7 @@ Un gestionnaire de notes professionnel en TypeScript avec une architecture orien
 - [Installation](#-installation)
 - [Utilisation](#-utilisation)
 - [Tests](#-tests)
+- [Rapports CI/CD](#-rapports-cicd)
 - [Principes SOLID](#-principes-solid-appliqués)
 - [Extensibilité](#-extensibilité)
 - [Diagramme de classes](#-diagramme-de-classes-simplifié)
@@ -200,6 +201,31 @@ npm test
 # Mode watch
 npm run test:watch
 ```
+
+## 📈 Rapports CI/CD
+
+Les rapports de métriques sont générés automatiquement par le workflow GitHub Actions **CI - Tests, Analyse & Métriques** :
+
+- sur `push` vers `main`/`master` → publication dans `ci-results/generated/main/`
+- sur `pull_request` vers `main`/`master` → publication dans `ci-results/generated/pr-<numero>/`
+
+### Générer les rapports après les dernières modifications
+
+1. Pousser les changements sur `main` (ou merger une PR dans `main`) pour déclencher le pipeline de `main`.
+2. Mettre à jour la PR concernée (ex. **PR #4**) pour déclencher son pipeline PR.
+3. Vérifier les runs dans l'onglet **Actions**.
+
+### Consulter les rapports générés
+
+- Branche de résultats : `ci-results`
+- Rapport `main` : `generated/main/rapport_metriques.pdf`
+- Rapport PR #4 : `generated/pr-4/rapport_metriques.pdf`
+- Données associées : `export_metrics.csv`, `model.json`, `graphs/*.png`
+
+Liens directs :
+
+- `https://github.com/MehdiAq/TP2-NoteManager/tree/ci-results/generated/main`
+- `https://github.com/MehdiAq/TP2-NoteManager/tree/ci-results/generated/pr-4`
 
 ## 🎯 Principes SOLID Appliqués
 
