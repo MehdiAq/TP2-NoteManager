@@ -207,7 +207,7 @@ npm run test:watch
 Les rapports de métriques sont générés automatiquement par le workflow GitHub Actions **CI - Tests, Analyse & Métriques** :
 
 - sur `push` vers `main`/`master` → publication dans `ci-results/generated/main/`
-- sur `pull_request` vers `main`/`master` → publication dans `ci-results/generated/pr-<numero>/`
+- sur `pull_request` vers `main`/`master` → publication dans `ci-results/generated/pr-<numéro>/`
 
 ### Générer les rapports après les dernières modifications
 
