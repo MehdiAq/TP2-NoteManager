@@ -18,6 +18,11 @@
     - [Changement 1 — Patron Commande (GoF) pour CLIController](#changement-1--patron-commande-gof-pour-clicontroller)
     - [Changement 2 — Décomposition du façade NoteService](#changement-2--décomposition-du-façade-noteservice)
     - [Changement 3 — Extraction des structures de données de SearchEngine](#changement-3--extraction-des-structures-de-données-de-searchengine)
+  - [Partie 3 : Résultats après les réusinages](#partie-3--résultats-après-les-réusinages)
+    - [Changement 1 — Patron Commande pour CLIController](#changement-1--patron-commande-pour-clicontroller)
+    - [Changement 2 — Encapsulation du façade NoteService](#changement-2--encapsulation-du-façade-noteservice)
+    - [Changement 3 — Composition pour SearchEngine](#changement-3--composition-pour-searchengine)
+    - [Synthèse : Les changements ont-ils amélioré la qualité de manière mesurable ?](#synthèse--les-changements-ont-ils-amélioré-la-qualité-de-manière-mesurable-)
 
 ---
 
@@ -672,6 +677,141 @@ La classe `LRUCache` est réutilisable dans d'autres contextes du projet. La cla
 | 1 | CLIController → Patron Commande | Commande (GoF), Forte Cohésion (GRASP), OCP (SOLID), Loi de Déméter | WMC : 44 → ~4 |
 | 2 | NoteService → Services spécialisés | Faible Couplage (GRASP), SRP (SOLID), Masquage de l'information, ISP (SOLID) | CBO : 9 → ~3 |
 | 3 | SearchEngine → Composition (InvertedIndex + LRUCache) | Fabrication Pure (GRASP), DRY, Forte Cohésion (GRASP), Composition > Héritage | LOC/M : 27 → ~12 |
+
+---
+
+<div style="page-break-after: always;"></div>
+
+## Partie 3 : Résultats après les réusinages
+
+Les trois réusinages proposés en Partie 2 ont été implémentés sur des branches séparées. Les 120 tests existants passent sur chaque branche, confirmant que le comportement du système est préservé.
+
+### Changement 1 — Patron Commande pour CLIController
+
+**Branche :** `refactor/clicontroller-command-pattern`
+
+**Métriques avant / après :**
+
+| Métrique | Avant | Après | Variation |
+|----------|-------|-------|-----------|
+| LOC (CLIController) | 310 | 17 | **−94.5 %** |
+| NOM (CLIController) | 16 | 2 | **−87.5 %** |
+| WMC (CLIController) | 44 | 3 | **−93 %** |
+| CBO (CLIController) | 6 | 1 | **−83 %** |
+| LOC/M (CLIController) | 19.4 | 8.5 | **−56 %** |
+
+**Nouvelles classes créées :**
+
+| Classe | LOC | NOM | NOA | CBO |
+|--------|-----|-----|-----|-----|
+| CreateNoteCommand | 15 | 1 | 1 | 2 |
+| ListNotesCommand | 34 | 1 | 1 | 2 |
+| ShowNoteCommand | 35 | 1 | 1 | 2 |
+| SearchNotesCommand | 24 | 1 | 1 | 2 |
+| FilterByTagCommand | 22 | 1 | 1 | 2 |
+| DeleteNoteCommand | 13 | 1 | 1 | 2 |
+| ExportNotesCommand | 13 | 1 | 1 | 2 |
+| ImportNotesCommand | 14 | 1 | 1 | 2 |
+| CreateBackupCommand | 21 | 1 | 1 | 2 |
+| ListBackupsCommand | 24 | 1 | 1 | 2 |
+| RestoreBackupCommand | 22 | 1 | 1 | 2 |
+| VerifyBackupCommand | 22 | 1 | 1 | 2 |
+| AttachFileCommand | 25 | 1 | 1 | 2 |
+| ListAttachmentsCommand | 27 | 1 | 1 | 2 |
+| DetachFileCommand | 25 | 1 | 1 | 2 |
+
+Chaque commande a un CBO de 2 (ICommand + son service métier), un WMC de 1 à 3 et un LOC entre 13 et 35. La classe `App.ts` (racine de composition) passe de 27 à 67 LOC car elle assemble toutes les commandes — c'est le rôle attendu d'une racine de composition.
+
+**Analyse :** CLIController est passé d'une God Class (WMC=44, la plus élevée du projet) à un simple registre de commandes avec 2 méthodes triviales. Le WMC total n'a pas disparu — il est distribué entre 15 commandes à responsabilité unique. Conformément au principe de **Forte Cohésion (GRASP)**, chaque commande ne traite qu'un seul cas d'utilisation. L'ajout d'une nouvelle commande CLI ne nécessite plus de modifier CLIController (**OCP, SOLID**). Les commandes de backup et d'attachement reçoivent directement leur service via injection, éliminant les violations de la **Loi de Déméter**.
+
+---
+
+### Changement 2 — Encapsulation du façade NoteService
+
+**Branche :** `refactor/noteservice-decomposition`
+
+**Métriques avant / après :**
+
+| Métrique | Avant | Après | Variation |
+|----------|-------|-------|-----------|
+| LOC (NoteService) | 205 | 239 | +16.6 % |
+| NOM (NoteService) | 20 | 25 | +25 % |
+| CBO (NoteService) | 9 | 9 | — |
+| `as any` casts | 1 | 0 | **−100 %** |
+| Getters exposant collaborateurs | 2 | 0 | **−100 %** |
+| Violations Loi de Déméter (CLIController) | 7 | 0 | **−100 %** |
+
+**Changements dans ISearchEngine :**
+
+| Métrique | Avant | Après |
+|----------|-------|-------|
+| Méthodes dans l'interface | 4 | 6 (+`buildIndexes`, +`invalidateCache`) |
+
+**Analyse :** Ce réusinage est principalement **qualitatif** et non quantitatif. Le CBO de NoteService reste à 9, et le LOC augmente légèrement car les méthodes façade (`createBackup()`, `listBackups()`, `restoreBackup()`, `verifyBackupIntegrity()`, `hasBackupService()`, `attachFile()`, `listAttachments()`, `detachFile()`, `hasAttachmentService()`) remplacent les getters `getBackupService()` et `getAttachmentService()`.
+
+L'amélioration est visible sur trois axes :
+
+1. **Masquage de l'information** (notes de cours, section 3.13) : les collaborateurs internes (`BackupService`, `AttachmentService`) ne sont plus exposés. Les clients interagissent uniquement avec NoteService, qui délègue en interne.
+
+2. **Élimination du cast `as any`** : l'ajout de `buildIndexes()` et `invalidateCache()` à l'interface `ISearchEngine` permet à NoteService d'appeler ces méthodes de manière typée, sans contourner le système de types. Cela illustre le **Principe d'inversion des dépendances (DIP, SOLID)** : l'interface définit le contrat, pas l'implémentation.
+
+3. **Loi de Déméter** (notes de cours, section 3.20) : les 7 appels `this.noteService.getBackupService().method()` et `this.noteService.getAttachmentService().method()` dans CLIController sont remplacés par des appels directs `this.noteService.method()`, éliminant le couplage transitif.
+
+Ce cas illustre une limite des métriques CK : le CBO ne distingue pas un couplage bien encapsulé (via des interfaces propres) d'un couplage fragile (via des getters et des casts `as any`). La qualité du couplage s'est améliorée sans que la quantité ne change.
+
+---
+
+### Changement 3 — Composition pour SearchEngine
+
+**Branche :** `refactor/searchengine-composition`
+
+**Métriques avant / après :**
+
+| Métrique | Avant | Après | Variation |
+|----------|-------|-------|-----------|
+| LOC (SearchEngine) | 297 | 153 | **−48.5 %** |
+| NOM (SearchEngine) | 11 | 9 | −18 % |
+| NOA (SearchEngine) | 6 | 5 | −17 % |
+| LOC/M (SearchEngine) | 27.0 | 17.0 | **−37 %** |
+| CC/M (SearchEngine) | 3.0 | ~1.8 | **−40 %** |
+| CBO (SearchEngine) | 3 | 4 | +33 % |
+| Blocs de code dupliqués (8 lignes × 5) | 5 | 0 | **−100 %** |
+
+**Nouvelles classes créées :**
+
+| Classe | LOC | NOM | NOA | CBO |
+|--------|-----|-----|-----|-----|
+| LRUCache | 31 | 5 | 2 | 0 |
+| InvertedIndex | 28 | 4 | 1 | 0 |
+
+**Analyse :** La décomposition par composition a réduit le LOC de SearchEngine de moitié et éliminé complètement la duplication structurelle. La méthode `cachedSearch()` factorise le patron cache/index qui était répété 5 fois — une application directe du **principe DRY**.
+
+Les classes `LRUCache` et `InvertedIndex` sont des **Fabrications Pures (GRASP)** (notes de cours, section 3.10) : elles n'existent pas dans le domaine métier mais améliorent la cohésion technique. Leur CBO de 0 (aucune dépendance projet) les rend réutilisables et testables de manière isolée.
+
+Le CBO de SearchEngine augmente de 3 à 4 (+1, dû à la dépendance vers `LRUCache` et `InvertedIndex` — +2 nouvelles dépendances, mais les Maps brutes ne sont plus comptées). Cette légère augmentation est acceptable car le couplage est de type « faible et stable » (notes de cours, section 1.4) : les classes composées sont internes au module `search/` et n'ont pas de dépendances externes.
+
+---
+
+### Synthèse : Les changements ont-ils amélioré la qualité de manière mesurable ?
+
+**Oui, pour les changements 1 et 3. Le changement 2 est une amélioration qualitative.**
+
+| Critère | Changement 1 (Commande) | Changement 2 (Façade) | Changement 3 (Composition) |
+|---------|------------------------|----------------------|---------------------------|
+| WMC réduit | ✓ (44 → 3) | — | ✓ (33 → ~18) |
+| LOC réduit | ✓ (310 → 17) | ✗ (205 → 239) | ✓ (297 → 153) |
+| CBO réduit | ✓ (6 → 1) | — (9 → 9) | ✗ (3 → 4) |
+| Duplication éliminée | — | — | ✓ (5 blocs → 0) |
+| Qualité du couplage | ✓ (Déméter corrigée) | ✓ (Déméter corrigée, `as any` éliminé) | — |
+| Tests préservés | ✓ (120/120) | ✓ (120/120) | ✓ (120/120) |
+
+**Pourquoi ces améliorations sont significatives (selon les notes de cours) :**
+
+1. **Effet de propagation de changement** (notes de cours, section 1.8, Yau et Collofello 1985) : en réduisant le CBO de CLIController de 6 à 1, on réduit le nombre de classes dont un changement pourrait forcer une modification de CLIController. Le patron Commande isole chaque commande, de sorte qu'une modification dans BackupService n'affecte que `CreateBackupCommand` et non l'ensemble du contrôleur.
+
+2. **Maintenabilité** (notes de cours, section 1.2) : la réduction du LOC/M de SearchEngine (27 → 17) et l'élimination de la duplication structurelle facilitent la compréhension et la modification du code. Selon les notes de cours, « un code de haute qualité est un code qu'on peut facilement comprendre et modifier ».
+
+3. **Limitations des métriques** : le changement 2 illustre que les métriques CK ne capturent pas toutes les dimensions de la qualité. Le CBO ne distingue pas un couplage via `as any` (fragile, non vérifié à la compilation) d'un couplage via une interface propre (stable, vérifié par le compilateur). Les notes de cours (section 2.8) mettent en garde que « LCOM ne mesure que la cohésion syntaxique » — de même, le CBO ne mesure que la quantité de couplage, pas sa qualité.
 
 ---
 
