@@ -694,35 +694,37 @@ Les trois réusinages proposés en Partie 2 ont été implémentés sur des bran
 
 | Métrique | Avant | Après | Variation |
 |----------|-------|-------|-----------|
-| LOC (CLIController) | 310 | 17 | **−94.5 %** |
+| LOC (CLIController) | 310 | 16 | **−94.8 %** |
 | NOM (CLIController) | 16 | 2 | **−87.5 %** |
 | WMC (CLIController) | 44 | 3 | **−93 %** |
-| CBO (CLIController) | 6 | 1 | **−83 %** |
-| LOC/M (CLIController) | 19.4 | 8.5 | **−56 %** |
+| CBO (CLIController) | 6 | 16 | +167 % ¹ |
+| LOC/M (CLIController) | 19.4 | 8.0 | **−59 %** |
+
+¹ *Le CBO mesuré par Famix est bidirectionnel et basé sur les invocations : CLIController dispatche vers 15 classes de commandes, ce qui crée 15 liaisons bidirectionnelles dans le modèle. Au niveau des imports, CLIController ne dépend que de `ICommand` (1 dépendance réelle). Cette inflation est un artefact de la méthode de calcul CK appliquée au patron Commande.*
 
 **Nouvelles classes créées :**
 
 | Classe | LOC | NOM | NOA | CBO |
 |--------|-----|-----|-----|-----|
-| CreateNoteCommand | 15 | 1 | 1 | 2 |
-| ListNotesCommand | 34 | 1 | 1 | 2 |
-| ShowNoteCommand | 35 | 1 | 1 | 2 |
-| SearchNotesCommand | 24 | 1 | 1 | 2 |
-| FilterByTagCommand | 22 | 1 | 1 | 2 |
-| DeleteNoteCommand | 13 | 1 | 1 | 2 |
-| ExportNotesCommand | 13 | 1 | 1 | 2 |
-| ImportNotesCommand | 14 | 1 | 1 | 2 |
-| CreateBackupCommand | 21 | 1 | 1 | 2 |
-| ListBackupsCommand | 24 | 1 | 1 | 2 |
-| RestoreBackupCommand | 22 | 1 | 1 | 2 |
-| VerifyBackupCommand | 22 | 1 | 1 | 2 |
-| AttachFileCommand | 25 | 1 | 1 | 2 |
-| ListAttachmentsCommand | 27 | 1 | 1 | 2 |
-| DetachFileCommand | 25 | 1 | 1 | 2 |
+| CreateNoteCommand | 15 | 2 | 1 | 18 |
+| ListNotesCommand | 36 | 2 | 1 | 18 |
+| ShowNoteCommand | 37 | 2 | 1 | 20 |
+| SearchNotesCommand | 28 | 2 | 1 | 18 |
+| FilterByTagCommand | 24 | 2 | 1 | 18 |
+| DeleteNoteCommand | 14 | 2 | 1 | 17 |
+| ExportNotesCommand | 13 | 2 | 1 | 17 |
+| ImportNotesCommand | 14 | 2 | 1 | 17 |
+| CreateBackupCommand | 21 | 2 | 1 | 17 |
+| ListBackupsCommand | 27 | 2 | 1 | 17 |
+| RestoreBackupCommand | 23 | 2 | 1 | 17 |
+| VerifyBackupCommand | 24 | 2 | 1 | 17 |
+| AttachFileCommand | 24 | 2 | 1 | 18 |
+| ListAttachmentsCommand | 29 | 2 | 1 | 18 |
+| DetachFileCommand | 25 | 2 | 1 | 17 |
 
-Chaque commande a un CBO de 2 (ICommand + son service métier), un WMC de 1 à 3 et un LOC entre 13 et 35. La classe `App.ts` (racine de composition) passe de 27 à 67 LOC car elle assemble toutes les commandes — c'est le rôle attendu d'une racine de composition.
+Le NOM de 2 par commande reflète le comptage Pharo (constructeur + `execute`). Le CBO de 17–20 est une conséquence du CBO bidirectionnel : chaque commande appelle NoteService/BackupService/AttachmentService, qui eux-mêmes appellent d'autres classes — toutes ces liaisons sont comptées dans les deux sens par Famix. La classe `App.ts` (racine de composition) passe de 27 à 50 LOC car elle assemble toutes les commandes.
 
-**Analyse :** CLIController est passé d'une God Class (WMC=44, la plus élevée du projet) à un simple registre de commandes avec 2 méthodes triviales. Le WMC total n'a pas disparu — il est distribué entre 15 commandes à responsabilité unique. Conformément au principe de **Forte Cohésion (GRASP)**, chaque commande ne traite qu'un seul cas d'utilisation. L'ajout d'une nouvelle commande CLI ne nécessite plus de modifier CLIController (**OCP, SOLID**). Les commandes de backup et d'attachement reçoivent directement leur service via injection, éliminant les violations de la **Loi de Déméter**.
+**Analyse :** CLIController est passé d'une God Class (WMC=44) à un simple registre de commandes avec 2 méthodes triviales (WMC=3). Le WMC total n'a pas disparu — il est distribué entre 15 commandes à responsabilité unique. Conformément au principe de **Forte Cohésion (GRASP)**, chaque commande ne traite qu'un seul cas d'utilisation. L'ajout d'une nouvelle commande CLI ne nécessite plus de modifier CLIController (**OCP, SOLID**). Les commandes de backup et d'attachement reçoivent directement leur service via injection, éliminant les violations de la **Loi de Déméter**.
 
 ---
 
@@ -734,12 +736,16 @@ Chaque commande a un CBO de 2 (ICommand + son service métier), un WMC de 1 à 3
 
 | Métrique | Avant | Après | Variation |
 |----------|-------|-------|-----------|
-| LOC (NoteService) | 205 | 239 | +16.6 % |
-| NOM (NoteService) | 20 | 25 | +25 % |
+| LOC (NoteService) | 205 | 231 | +12.7 % |
+| NOM (NoteService) | 20 | 26 | +30 % |
+| WMC (NoteService) | 33 | 45 | +36 % ¹ |
 | CBO (NoteService) | 9 | 9 | — |
+| CBO (CLIController) | 6 | 4 | **−33 %** |
 | `as any` casts | 1 | 0 | **−100 %** |
 | Getters exposant collaborateurs | 2 | 0 | **−100 %** |
 | Violations Loi de Déméter (CLIController) | 7 | 0 | **−100 %** |
+
+¹ *Le WMC augmente car 9 méthodes façade ont été ajoutées (une par opération backup/attachement). Ce sont des délégations simples (CC=1 chacune), mais elles contribuent au WMC total. En contrepartie, le CBO de CLIController diminue de 6 à 4 : la suppression des getters élimine les 2 dépendances transitives vers BackupService et AttachmentService.*
 
 **Changements dans ISearchEngine :**
 
@@ -769,11 +775,12 @@ Ce cas illustre une limite des métriques CK : le CBO ne distingue pas un coupla
 
 | Métrique | Avant | Après | Variation |
 |----------|-------|-------|-----------|
-| LOC (SearchEngine) | 297 | 153 | **−48.5 %** |
+| LOC (SearchEngine) | 297 | 148 | **−50.2 %** |
 | NOM (SearchEngine) | 11 | 9 | −18 % |
 | NOA (SearchEngine) | 6 | 5 | −17 % |
-| LOC/M (SearchEngine) | 27.0 | 17.0 | **−37 %** |
-| CC/M (SearchEngine) | 3.0 | ~1.8 | **−40 %** |
+| LOC/M (SearchEngine) | 27.0 | 16.4 | **−39 %** |
+| CC/M (SearchEngine) | 3.0 | 1.4 | **−53 %** |
+| WMC (SearchEngine) | 33 | 13 | **−61 %** |
 | CBO (SearchEngine) | 3 | 4 | +33 % |
 | Blocs de code dupliqués (8 lignes × 5) | 5 | 0 | **−100 %** |
 
@@ -781,12 +788,12 @@ Ce cas illustre une limite des métriques CK : le CBO ne distingue pas un coupla
 
 | Classe | LOC | NOM | NOA | CBO |
 |--------|-----|-----|-----|-----|
-| LRUCache | 32 | 5 | 2 | 1 |
-| InvertedIndex | 28 | 4 | 1 | 0 |
+| LRUCache | 31 | 6 | 2 | 1 |
+| InvertedIndex | 28 | 4 | 1 | 1 |
 
 **Analyse :** La décomposition par composition a réduit le LOC de SearchEngine de moitié et éliminé complètement la duplication structurelle. La méthode `cachedSearch()` factorise le patron cache/index qui était répété 5 fois — une application directe du **principe DRY**.
 
-Les classes `LRUCache` et `InvertedIndex` sont des **Fabrications Pures (GRASP)** (notes de cours, section 3.10) : elles n'existent pas dans le domaine métier mais améliorent la cohésion technique. `InvertedIndex` a un CBO de 0 (aucune dépendance projet). `LRUCache` a un CBO de 1 (dépend de `INote` pour typer ses valeurs), ce qui est minimal et stable.
+Les classes `LRUCache` et `InvertedIndex` sont des **Fabrications Pures (GRASP)** (notes de cours, section 3.10) : elles n'existent pas dans le domaine métier mais améliorent la cohésion technique. `InvertedIndex` et `LRUCache` ont chacun un CBO de 1 (dépendance vers `INote` pour typer les valeurs du cache et les entrées de l'index), ce qui est minimal et stable.
 
 Le CBO de SearchEngine augmente de 3 à 4 (+1, dû à la dépendance vers `LRUCache` et `InvertedIndex` — +2 nouvelles dépendances, mais les Maps brutes ne sont plus comptées). Cette légère augmentation est acceptable car le couplage est de type « faible et stable » (notes de cours, section 1.4) : les classes composées sont internes au module `search/` et n'ont pas de dépendances externes.
 
@@ -798,12 +805,15 @@ Le CBO de SearchEngine augmente de 3 à 4 (+1, dû à la dépendance vers `LRUCa
 
 | Critère | Changement 1 (Commande) | Changement 2 (Façade) | Changement 3 (Composition) |
 |---------|------------------------|----------------------|---------------------------|
-| WMC réduit | ✓ (44 → 3) | — | ✓ (33 → ~18) |
-| LOC réduit | ✓ (310 → 17) | ✗ (205 → 239) | ✓ (297 → 153) |
-| CBO réduit | ✓ (6 → 1) | — (9 → 9) | ✗ (3 → 4) |
+| WMC réduit | ✓ (44 → 3) | ✗ (33 → 45, +9 méthodes façade) | ✓ (33 → 13) |
+| LOC réduit | ✓ (310 → 16) | ✗ (205 → 231) | ✓ (297 → 148) |
+| CBO (imports directs) | ✓ (6 → 1 import) | — (qualité améliorée) | ✗ (3 → 4) |
+| CBO (Famix mesuré) | ✗ (6 → 16) ¹ | ✗ (9 → 16) ¹ | ✗ (3 → 4) |
 | Duplication éliminée | — | — | ✓ (5 blocs → 0) |
 | Qualité du couplage | ✓ (Déméter corrigée) | ✓ (Déméter corrigée, `as any` éliminé) | — |
 | Tests préservés | ✓ (120/120) | ✓ (120/120) | ✓ (120/120) |
+
+¹ *Le CBO Famix bidirectionnel augmente mécaniquement quand le nombre de classes augmente. Ce n'est pas une dégradation de la conception, mais un artefact du patron Commande : 15 nouvelles classes appellent NoteService, ce qui est comptabilisé comme 15 couplages dans les deux sens.*
 
 **Pourquoi ces améliorations sont significatives (selon les notes de cours) :**
 
