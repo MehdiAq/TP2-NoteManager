@@ -506,7 +506,7 @@ Ce réusinage permet aussi de corriger le cast `as any` dans `rebuildSearchIndex
 
 **Réusinage proposé :**
 
-Étape 1 — Extraire le cache LRU dans une classe générique réutilisable (Fabrication Pure) :
+Étape 1 — Extraire le cache LRU dans une classe dédiée (Fabrication Pure) :
 
 ```typescript
 // src/search/LRUCache.ts
@@ -666,7 +666,7 @@ export class SearchEngine implements ISearchEngine {
 | CC/M (SearchEngine) | 3.0 | ~1.5 | La méthode `cachedSearch` factorise le patron répété |
 | Duplication | 8 lignes × 5 | 0 | Le patron cache/index n'est écrit qu'une fois |
 
-La classe `LRUCache` est réutilisable dans d'autres contextes du projet. La classe `InvertedIndex` est testable unitairement de façon isolée, sans dépendance au cache ni aux notes. Ces deux classes sont des **Fabrications Pures** au sens GRASP : elles n'existent pas dans le domaine métier (aucun concept « cache » ou « index » dans la gestion de notes) mais elles améliorent la qualité de la conception en augmentant la cohésion et en permettant la réutilisation.
+La classe `LRUCache` est cohésive et isolée dans son rôle (cache de résultats de recherche). La classe `InvertedIndex` est testable unitairement de façon isolée, sans dépendance au cache ni aux notes. Ces deux classes sont des **Fabrications Pures** au sens GRASP : elles n'existent pas dans le domaine métier (aucun concept « cache » ou « index » dans la gestion de notes) mais elles améliorent la qualité de la conception en augmentant la cohésion et en réduisant la complexité de `SearchEngine`.
 
 ---
 
@@ -781,12 +781,12 @@ Ce cas illustre une limite des métriques CK : le CBO ne distingue pas un coupla
 
 | Classe | LOC | NOM | NOA | CBO |
 |--------|-----|-----|-----|-----|
-| LRUCache | 31 | 5 | 2 | 0 |
+| LRUCache | 32 | 5 | 2 | 1 |
 | InvertedIndex | 28 | 4 | 1 | 0 |
 
 **Analyse :** La décomposition par composition a réduit le LOC de SearchEngine de moitié et éliminé complètement la duplication structurelle. La méthode `cachedSearch()` factorise le patron cache/index qui était répété 5 fois — une application directe du **principe DRY**.
 
-Les classes `LRUCache` et `InvertedIndex` sont des **Fabrications Pures (GRASP)** (notes de cours, section 3.10) : elles n'existent pas dans le domaine métier mais améliorent la cohésion technique. Leur CBO de 0 (aucune dépendance projet) les rend réutilisables et testables de manière isolée.
+Les classes `LRUCache` et `InvertedIndex` sont des **Fabrications Pures (GRASP)** (notes de cours, section 3.10) : elles n'existent pas dans le domaine métier mais améliorent la cohésion technique. `InvertedIndex` a un CBO de 0 (aucune dépendance projet). `LRUCache` a un CBO de 1 (dépend de `INote` pour typer ses valeurs), ce qui est minimal et stable.
 
 Le CBO de SearchEngine augmente de 3 à 4 (+1, dû à la dépendance vers `LRUCache` et `InvertedIndex` — +2 nouvelles dépendances, mais les Maps brutes ne sont plus comptées). Cette légère augmentation est acceptable car le couplage est de type « faible et stable » (notes de cours, section 1.4) : les classes composées sont internes au module `search/` et n'ont pas de dépendances externes.
 
