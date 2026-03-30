@@ -2,8 +2,8 @@ import { INote } from '../interfaces/INote';
 import { IRepository } from '../interfaces/IRepository';
 import { IStorage } from '../interfaces/IStorage';
 import { ISearchEngine } from '../interfaces/ISearchEngine';
-import { IBackupService } from '../interfaces/IBackupService';
-import { IAttachmentService } from '../interfaces/IAttachmentService';
+import { IBackupService, IBackupMetadata } from '../interfaces/IBackupService';
+import { IAttachmentService, IAttachment } from '../interfaces/IAttachmentService';
 import { NoteFactory } from '../factories/NoteFactory';
 
 export class NoteService {
@@ -41,32 +41,27 @@ export class NoteService {
   private loadNotes(): void {
     const notes = this.storage.load();
     notes.forEach(note => this.repository.add(note));
-    
-    // Construire les index de recherche après le chargement
-    this.rebuildSearchIndexes();
+    this.searchEngine.buildIndexes(this.repository.findAll());
   }
 
   private persist(): void {
     const notes = this.repository.findAll();
     this.storage.save(notes);
-    
-    // Incrémenter le compteur de modifications pour le backup automatique
+
     if (this.backupService && this.autoBackupConfig.enabled) {
       this.backupService.incrementModificationCount();
-      
-      // Vérifier si un backup automatique est nécessaire
+
       if (this.backupService.getModificationsSinceLastBackup() >= this.autoBackupConfig.maxModifications) {
         this.createAutoBackup();
       }
     }
-    
-    // Invalider le cache de recherche et reconstruire les index
-    this.rebuildSearchIndexes();
+
+    this.searchEngine.buildIndexes(notes);
   }
 
   private async createAutoBackup(): Promise<void> {
     if (!this.backupService) return;
-    
+
     try {
       await this.backupService.createBackup();
       this.backupService.cleanOldBackups(this.autoBackupConfig.maxBackups);
@@ -75,29 +70,12 @@ export class NoteService {
     }
   }
 
-  /**
-   * Reconstruit les index de recherche pour optimiser les performances
-   */
-  private rebuildSearchIndexes(): void {
-    const allNotes = this.repository.findAll();
-    // Le SearchEngine optimisé utilise buildIndexes pour construire ses index
-    if ('buildIndexes' in this.searchEngine) {
-      (this.searchEngine as any).buildIndexes(allNotes);
-    }
-  }
-
-  /**
-   * Configure le backup automatique
-   */
   public configureAutoBackup(maxModifications: number, maxBackups: number): void {
     this.autoBackupConfig.enabled = true;
     this.autoBackupConfig.maxModifications = maxModifications;
     this.autoBackupConfig.maxBackups = maxBackups;
   }
 
-  /**
-   * Désactive le backup automatique
-   */
   public disableAutoBackup(): void {
     this.autoBackupConfig.enabled = false;
   }
@@ -110,11 +88,10 @@ export class NoteService {
   }
 
   public async deleteNote(id: string): Promise<boolean> {
-    // Supprimer les attachements associés
     if (this.attachmentService) {
       await this.attachmentService.deleteNoteAttachments(id);
     }
-    
+
     const deleted = this.repository.remove(id);
     if (deleted) {
       this.persist();
@@ -172,13 +149,11 @@ export class NoteService {
 
   public importNotes(path: string, merge: boolean = false): void {
     const importedNotes = this.storage.import(path);
-    
+
     if (!merge) {
       this.repository.clear();
       importedNotes.forEach(note => this.repository.add(note));
     } else {
-      // En mode fusion, créer de nouvelles notes avec de nouveaux IDs
-      // pour éviter les collisions
       importedNotes.forEach(note => {
         const newNote = NoteFactory.createNote(
           note.getTitle(),
@@ -201,13 +176,64 @@ export class NoteService {
     return this.repository.findAll().length;
   }
 
-  // Méthodes pour le BackupService
-  public getBackupService(): IBackupService | undefined {
-    return this.backupService;
+  // ========== Méthodes façade pour le BackupService ==========
+
+  public hasBackupService(): boolean {
+    return this.backupService !== undefined;
   }
 
-  // Méthodes pour l'AttachmentService
-  public getAttachmentService(): IAttachmentService | undefined {
-    return this.attachmentService;
+  public async createBackup(): Promise<IBackupMetadata> {
+    if (!this.backupService) {
+      throw new Error('Le service de backup n\'est pas configuré.');
+    }
+    return this.backupService.createBackup();
+  }
+
+  public listBackups(): IBackupMetadata[] {
+    if (!this.backupService) {
+      throw new Error('Le service de backup n\'est pas configuré.');
+    }
+    return this.backupService.listBackups();
+  }
+
+  public async restoreBackup(backupId: string): Promise<boolean> {
+    if (!this.backupService) {
+      throw new Error('Le service de backup n\'est pas configuré.');
+    }
+    return this.backupService.restoreBackup(backupId);
+  }
+
+  public async verifyBackupIntegrity(backupId: string): Promise<boolean> {
+    if (!this.backupService) {
+      throw new Error('Le service de backup n\'est pas configuré.');
+    }
+    return this.backupService.verifyBackupIntegrity(backupId);
+  }
+
+  // ========== Méthodes façade pour l'AttachmentService ==========
+
+  public hasAttachmentService(): boolean {
+    return this.attachmentService !== undefined;
+  }
+
+  public async attachFile(noteId: string, filePath: string): Promise<IAttachment> {
+    if (!this.attachmentService) {
+      throw new Error('Le service d\'attachements n\'est pas configuré.');
+    }
+    return this.attachmentService.attachFile(noteId, filePath);
+  }
+
+  public listAttachments(noteId: string): IAttachment[] {
+    if (!this.attachmentService) {
+      throw new Error('Le service d\'attachements n\'est pas configuré.');
+    }
+    return this.attachmentService.listAttachments(noteId);
+  }
+
+  public async detachFile(noteId: string, attachmentId: string): Promise<boolean> {
+    if (!this.attachmentService) {
+      throw new Error('Le service d\'attachements n\'est pas configuré.');
+    }
+    return this.attachmentService.detachFile(noteId, attachmentId);
   }
 }
