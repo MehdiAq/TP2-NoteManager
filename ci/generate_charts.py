@@ -759,9 +759,6 @@ def prepare_comparison_df(df_pr, df_main):
         if col not in ['Nom_Classe', '_merge']:
             merged[col] = pd.to_numeric(merged[col], errors='coerce').fillna(0)
     merged['Classe_Label'] = merged['Nom_Classe']
-    merged.loc[merged['_merge'] == 'left_only', 'Classe_Label'] = (
-        merged.loc[merged['_merge'] == 'left_only', 'Nom_Classe'] + ' (nouvelle)'
-    )
     merged.loc[merged['_merge'] == 'right_only', 'Classe_Label'] = (
         merged.loc[merged['_merge'] == 'right_only', 'Nom_Classe'] + ' (supprimée)'
     )
@@ -772,12 +769,17 @@ def format_float_value(value):
     return f'{value:.1f}'.rstrip('0').rstrip('.')
 
 
-def highlight_changed_labels(labels, changed_mask):
-    """Highlight matplotlib tick labels for classes whose compared metric changed."""
-    for label, changed in zip(labels, changed_mask):
-        if changed:
+def highlight_changed_labels(labels, changed_mask, new_mask=None):
+    """Highlight matplotlib tick labels for classes whose compared metric changed.
+    New classes (left_only) are shown in bold red; changed classes in bold black."""
+    for i, (label, changed) in enumerate(zip(labels, changed_mask)):
+        is_new = new_mask[i] if new_mask is not None else False
+        if is_new:
             label.set_fontweight('bold')
-            label.set_color('#c0392b')
+            label.set_color('#e74c3c')
+        elif changed:
+            label.set_fontweight('bold')
+            label.set_color('black')
 
 
 def add_no_change_stamp(fig):
@@ -822,7 +824,8 @@ def page_histogramme_compare(pdf, df_pr, df_main):
         else:
             ax.set_xticks(x)
             ax.set_xticklabels(merged['Classe_Label'], rotation=45, ha='right', fontsize=8)
-            highlight_changed_labels(ax.get_xticklabels(), changed_mask)
+            new_mask = (merged['_merge'] == 'left_only').tolist()
+            highlight_changed_labels(ax.get_xticklabels(), changed_mask, new_mask)
 
     if not changed_mask.any():
         add_no_change_stamp(fig)
@@ -891,7 +894,8 @@ def page_densite_compare(pdf, df_pr, df_main):
 
     ax.set_yticks(y)
     ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
-    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist())
+    new_mask = (merged['_merge'] == 'left_only').tolist()
+    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist(), new_mask)
     ax.set_xlabel('LOC par méthode', fontsize=11)
     ax.grid(axis='x', alpha=0.3)
     ax.legend(fontsize=9, loc='upper right')
@@ -935,7 +939,8 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
 
     ax.set_yticks(y)
     ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
-    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist())
+    new_mask = (merged['_merge'] == 'left_only').tolist()
+    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist(), new_mask)
     ax.set_xlabel(xlabel, fontsize=11)
     ax.grid(axis='x', alpha=0.3)
     ax.legend(fontsize=9, loc='upper right')
