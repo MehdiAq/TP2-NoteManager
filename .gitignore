@@ -45,6 +45,8 @@ rapport_metriques.pdf
 *.swp
 *.swo
 *~
+__pycache__/
+*.pyc
 
 # ============================
 # OS
