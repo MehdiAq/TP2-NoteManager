@@ -1,17 +1,19 @@
-export class LRUCache<K, V> {
-  private cache: Map<K, V> = new Map();
+import { INote } from '../interfaces/INote';
+
+export class LRUCache {
+  private cache: Map<string, INote[]> = new Map();
 
   constructor(private readonly maxSize: number) {}
 
-  get(key: K): V | undefined {
+  get(key: string): INote[] | undefined {
     return this.cache.get(key);
   }
 
-  has(key: K): boolean {
+  has(key: string): boolean {
     return this.cache.has(key);
   }
 
-  set(key: K, value: V): void {
+  set(key: string, value: INote[]): void {
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       if (firstKey !== undefined) {

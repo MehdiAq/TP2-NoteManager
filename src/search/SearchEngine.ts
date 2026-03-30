@@ -8,7 +8,7 @@ export class SearchEngine implements ISearchEngine {
   private wordIndex = new InvertedIndex();
   private titleIndex = new InvertedIndex();
   private notesMap: Map<string, INote> = new Map();
-  private cache = new LRUCache<string, INote[]>(100);
+  private cache = new LRUCache(100);
 
   public buildIndexes(notes: INote[]): void {
     this.tagIndex.clear();
