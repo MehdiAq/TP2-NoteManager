@@ -5,4 +5,5 @@ export interface ISearchEngine {
   searchByTag(notes: INote[], tag: string): INote[];
   searchByTitle(notes: INote[], title: string): INote[];
   searchByContent(notes: INote[], content: string): INote[];
+  buildIndexes?(notes: INote[]): void;
 }
