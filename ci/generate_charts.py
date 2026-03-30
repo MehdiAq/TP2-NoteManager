@@ -746,7 +746,7 @@ def page_conclusion(pdf, df):
 
 
 # ============================================================
-# Mode PR : Graphiques comparatifs (PR vs main) — Pages 1 à 6
+# Mode PR : Graphiques comparatifs (PR vs main) — Pages 1 à 5
 # ============================================================
 
 def prepare_comparison_df(df_pr, df_main):
@@ -772,6 +772,24 @@ def format_float_value(value):
     return f'{value:.1f}'.rstrip('0').rstrip('.')
 
 
+def highlight_changed_labels(labels, changed_mask):
+    """Highlight matplotlib tick labels for classes whose compared metric changed."""
+    for label, changed in zip(labels, changed_mask):
+        if changed:
+            label.set_fontweight('bold')
+            label.set_color('#c0392b')
+
+
+def add_no_change_stamp(fig):
+    """Overlay a large watermark-style 'Pas de changement' stamp on a figure."""
+    fig.text(
+        0.5, 0.55, 'Pas de changement',
+        ha='center', va='center', fontsize=54, fontweight='bold',
+        color='#e74c3c', alpha=0.28, rotation=16,
+        bbox=dict(boxstyle='round,pad=0.35', facecolor='white', edgecolor='#e74c3c', linewidth=2.5, alpha=0.35)
+    )
+
+
 def page_histogramme_compare(pdf, df_pr, df_main):
     fig = plt.figure(figsize=(11, 8.5))
     fig.text(0.5, 0.95, '1. Comparaison PR vs main — LOC, NOM, NOA',
@@ -783,6 +801,11 @@ def page_histogramme_compare(pdf, df_pr, df_main):
         ('Nb_Methodes', 'NOM', '#3498db'),
         ('Nb_Attributs', 'NOA', '#2ecc71')
     ]
+    changed_mask = (
+        ~np.isclose(merged['Lignes_de_Code_pr'], merged['Lignes_de_Code_main'], rtol=1e-05, atol=1e-08) |
+        ~np.isclose(merged['Nb_Methodes_pr'], merged['Nb_Methodes_main'], rtol=1e-05, atol=1e-08) |
+        ~np.isclose(merged['Nb_Attributs_pr'], merged['Nb_Attributs_main'], rtol=1e-05, atol=1e-08)
+    )
 
     x = np.arange(len(merged))
     width = 0.35
@@ -799,6 +822,10 @@ def page_histogramme_compare(pdf, df_pr, df_main):
         else:
             ax.set_xticks(x)
             ax.set_xticklabels(merged['Classe_Label'], rotation=45, ha='right', fontsize=8)
+            highlight_changed_labels(ax.get_xticklabels(), changed_mask)
+
+    if not changed_mask.any():
+        add_no_change_stamp(fig)
 
     ax_desc = fig.add_axes([0.06, 0.02, 0.88, 0.12])
     ax_desc.axis('off')
@@ -846,12 +873,15 @@ def page_scatter_compare(pdf, df_pr, df_main):
 
 def page_densite_compare(pdf, df_pr, df_main):
     fig = plt.figure(figsize=(11, 8.5))
-    fig.text(0.5, 0.95, '3. Comparaison PR vs main — Densité de code (LOC / méthode)',
+    fig.text(0.5, 0.95, '2. Comparaison PR vs main — Densité de code (LOC / méthode)',
              ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
     ax = fig.add_axes([0.15, 0.28, 0.78, 0.62])
     merged = prepare_comparison_df(df_pr, df_main).copy()
     merged['densite_main'] = merged['Lignes_de_Code_main'] / merged['Nb_Methodes_main'].replace(0, 1)
     merged['densite_pr'] = merged['Lignes_de_Code_pr'] / merged['Nb_Methodes_pr'].replace(0, 1)
+    merged['has_change'] = ~np.isclose(
+        merged['densite_main'], merged['densite_pr'], rtol=1e-05, atol=1e-08
+    )
     merged = merged.sort_values('densite_pr', ascending=True)
 
     y = np.arange(len(merged))
@@ -861,6 +891,7 @@ def page_densite_compare(pdf, df_pr, df_main):
 
     ax.set_yticks(y)
     ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
+    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist())
     ax.set_xlabel('LOC par méthode', fontsize=11)
     ax.grid(axis='x', alpha=0.3)
     ax.legend(fontsize=9, loc='upper right')
@@ -879,6 +910,9 @@ def page_densite_compare(pdf, df_pr, df_main):
         transform=ax_desc.transAxes
     )
 
+    if not merged['has_change'].any():
+        add_no_change_stamp(fig)
+
     pdf.savefig(fig)
     save_graph(fig, '03_densite.png')
     plt.close(fig)
@@ -888,7 +922,11 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
     fig = plt.figure(figsize=(11, 8.5))
     fig.text(0.5, 0.95, title, ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
     ax = fig.add_axes([0.15, 0.28, 0.78, 0.62])
-    merged = prepare_comparison_df(df_pr, df_main).sort_values(f'{metric_col}_pr', ascending=True)
+    merged = prepare_comparison_df(df_pr, df_main)
+    merged['has_change'] = ~np.isclose(
+        merged[f'{metric_col}_pr'], merged[f'{metric_col}_main'], rtol=1e-05, atol=1e-08
+    )
+    merged = merged.sort_values(f'{metric_col}_pr', ascending=True)
 
     y = np.arange(len(merged))
     h = 0.35
@@ -897,6 +935,7 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
 
     ax.set_yticks(y)
     ax.set_yticklabels(merged['Classe_Label'], fontsize=9)
+    highlight_changed_labels(ax.get_yticklabels(), merged['has_change'].tolist())
     ax.set_xlabel(xlabel, fontsize=11)
     ax.grid(axis='x', alpha=0.3)
     ax.legend(fontsize=9, loc='upper right')
@@ -914,6 +953,9 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
         ha='left', va='top', fontsize=10, color='#2c3e50', wrap=True, linespacing=1.5,
         transform=ax_desc.transAxes
     )
+
+    if not merged['has_change'].any():
+        add_no_change_stamp(fig)
 
     pdf.savefig(fig)
     save_graph(fig, output_name)
@@ -944,12 +986,11 @@ def main():
             df_main = load_csv(baseline_main_path)
             page_titre(pdf)
             page_histogramme_compare(pdf, df, df_main)
-            page_scatter_compare(pdf, df, df_main)
             page_densite_compare(pdf, df, df_main)
             page_compare_metric_barh(
                 pdf, df, df_main,
                 metric_col='WMC',
-                title='4. Comparaison PR vs main — WMC',
+                title='3. Comparaison PR vs main — WMC',
                 xlabel='WMC',
                 output_name='04_wmc.png',
                 color_pr='#9b59b6'
@@ -957,7 +998,7 @@ def main():
             page_compare_metric_barh(
                 pdf, df, df_main,
                 metric_col='CBO',
-                title='5. Comparaison PR vs main — CBO',
+                title='4. Comparaison PR vs main — CBO',
                 xlabel='CBO',
                 output_name='05_cbo.png',
                 color_pr='#16a085'
@@ -965,12 +1006,12 @@ def main():
             page_compare_metric_barh(
                 pdf, df, df_main,
                 metric_col='LCOM',
-                title='6. Comparaison PR vs main — LCOM',
+                title='5. Comparaison PR vs main — LCOM',
                 xlabel='LCOM',
                 output_name='06_lcom.png',
                 color_pr='#c0392b'
             )
-            print(f"Rapport généré avec succès : {output_path} (7 pages: titre + graphes 1 à 6 comparatifs)")
+            print(f"Rapport généré avec succès : {output_path} (6 pages: titre + graphes 1 à 5 comparatifs)")
         else:
             page_titre(pdf)
             page_histogramme(pdf, df)
