@@ -1,5 +1,4 @@
 import { NoteService } from '../services/NoteService';
-import { INote } from '../interfaces/INote';
 
 export class CLIController {
   private noteService: NoteService;
@@ -65,10 +64,8 @@ export class CLIController {
     console.log(`Créée: ${note.getCreatedAt().toLocaleString()}`);
     console.log(`Modifiée: ${note.getUpdatedAt().toLocaleString()}`);
 
-    // Afficher les attachements s'il y en a
-    const attachmentService = this.noteService.getAttachmentService();
-    if (attachmentService) {
-      const attachments = attachmentService.listAttachments(id);
+    if (this.noteService.hasAttachmentService()) {
+      const attachments = this.noteService.listAttachments(id);
       if (attachments.length > 0) {
         console.log(`\nPièces jointes (${attachments.length}):`);
         attachments.forEach((attach, idx) => {
@@ -155,15 +152,13 @@ export class CLIController {
   // ========== Commandes pour les backups ==========
 
   public async createBackup(): Promise<void> {
-    const backupService = this.noteService.getBackupService();
-    
-    if (!backupService) {
+    if (!this.noteService.hasBackupService()) {
       console.log('✗ Le service de backup n\'est pas configuré.');
       return;
     }
 
     try {
-      const metadata = await backupService.createBackup();
+      const metadata = await this.noteService.createBackup();
       console.log('✓ Backup créé avec succès!');
       console.log(`ID: ${metadata.id}`);
       console.log(`Date: ${metadata.timestamp.toLocaleString()}`);
@@ -175,14 +170,12 @@ export class CLIController {
   }
 
   public listBackups(): void {
-    const backupService = this.noteService.getBackupService();
-    
-    if (!backupService) {
+    if (!this.noteService.hasBackupService()) {
       console.log('✗ Le service de backup n\'est pas configuré.');
       return;
     }
 
-    const backups = backupService.listBackups();
+    const backups = this.noteService.listBackups();
 
     if (backups.length === 0) {
       console.log('Aucun backup trouvé.');
@@ -201,16 +194,14 @@ export class CLIController {
   }
 
   public async restoreBackup(backupId: string): Promise<void> {
-    const backupService = this.noteService.getBackupService();
-    
-    if (!backupService) {
+    if (!this.noteService.hasBackupService()) {
       console.log('✗ Le service de backup n\'est pas configuré.');
       return;
     }
 
     try {
-      const restored = await backupService.restoreBackup(backupId);
-      
+      const restored = await this.noteService.restoreBackup(backupId);
+
       if (restored) {
         console.log('✓ Backup restauré avec succès!');
         console.log('Les notes ont été rechargées depuis le backup.');
@@ -221,16 +212,14 @@ export class CLIController {
   }
 
   public async verifyBackup(backupId: string): Promise<void> {
-    const backupService = this.noteService.getBackupService();
-    
-    if (!backupService) {
+    if (!this.noteService.hasBackupService()) {
       console.log('✗ Le service de backup n\'est pas configuré.');
       return;
     }
 
     try {
-      const isValid = await backupService.verifyBackupIntegrity(backupId);
-      
+      const isValid = await this.noteService.verifyBackupIntegrity(backupId);
+
       if (isValid) {
         console.log('✓ L\'intégrité du backup est validée.');
       } else {
@@ -244,15 +233,13 @@ export class CLIController {
   // ========== Commandes pour les attachements ==========
 
   public async attachFile(noteId: string, filePath: string): Promise<void> {
-    const attachmentService = this.noteService.getAttachmentService();
-    
-    if (!attachmentService) {
+    if (!this.noteService.hasAttachmentService()) {
       console.log('✗ Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
     try {
-      const attachment = await attachmentService.attachFile(noteId, filePath);
+      const attachment = await this.noteService.attachFile(noteId, filePath);
       console.log('✓ Fichier attaché avec succès!');
       console.log(`ID: ${attachment.id}`);
       console.log(`Nom: ${attachment.fileName}`);
@@ -264,14 +251,12 @@ export class CLIController {
   }
 
   public listAttachments(noteId: string): void {
-    const attachmentService = this.noteService.getAttachmentService();
-    
-    if (!attachmentService) {
+    if (!this.noteService.hasAttachmentService()) {
       console.log('✗ Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
-    const attachments = attachmentService.listAttachments(noteId);
+    const attachments = this.noteService.listAttachments(noteId);
 
     if (attachments.length === 0) {
       console.log(`Aucune pièce jointe pour la note "${noteId}".`);
@@ -291,16 +276,14 @@ export class CLIController {
   }
 
   public async detachFile(noteId: string, attachmentId: string): Promise<void> {
-    const attachmentService = this.noteService.getAttachmentService();
-    
-    if (!attachmentService) {
+    if (!this.noteService.hasAttachmentService()) {
       console.log('✗ Le service d\'attachements n\'est pas configuré.');
       return;
     }
 
     try {
-      const detached = await attachmentService.detachFile(noteId, attachmentId);
-      
+      const detached = await this.noteService.detachFile(noteId, attachmentId);
+
       if (detached) {
         console.log('✓ Fichier détaché avec succès!');
       } else {
