@@ -45,6 +45,8 @@ rapport_metriques.pdf
 *.swp
 *.swo
 *~
+__pycache__/
+*.pyc
 
 # ============================
 # OS
@@ -59,3 +61,4 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+Rapports/NotesDeCours.pdf
