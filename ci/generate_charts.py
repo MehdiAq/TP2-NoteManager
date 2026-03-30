@@ -773,6 +773,7 @@ def format_float_value(value):
 
 
 def highlight_changed_labels(labels, changed_mask):
+    """Highlight matplotlib tick labels for classes whose compared metric changed."""
     for label, changed in zip(labels, changed_mask):
         if changed:
             label.set_fontweight('bold')
@@ -780,6 +781,7 @@ def highlight_changed_labels(labels, changed_mask):
 
 
 def add_no_change_stamp(fig):
+    """Overlay a large watermark-style 'Pas de changement' stamp on a figure."""
     fig.text(
         0.5, 0.55, 'Pas de changement',
         ha='center', va='center', fontsize=54, fontweight='bold',
@@ -800,9 +802,9 @@ def page_histogramme_compare(pdf, df_pr, df_main):
         ('Nb_Attributs', 'NOA', '#2ecc71')
     ]
     changed_mask = (
-        (merged['Lignes_de_Code_pr'] != merged['Lignes_de_Code_main']) |
-        (merged['Nb_Methodes_pr'] != merged['Nb_Methodes_main']) |
-        (merged['Nb_Attributs_pr'] != merged['Nb_Attributs_main'])
+        ~np.isclose(merged['Lignes_de_Code_pr'], merged['Lignes_de_Code_main'], rtol=1e-05, atol=1e-08) |
+        ~np.isclose(merged['Nb_Methodes_pr'], merged['Nb_Methodes_main'], rtol=1e-05, atol=1e-08) |
+        ~np.isclose(merged['Nb_Attributs_pr'], merged['Nb_Attributs_main'], rtol=1e-05, atol=1e-08)
     )
 
     x = np.arange(len(merged))
@@ -877,7 +879,9 @@ def page_densite_compare(pdf, df_pr, df_main):
     merged = prepare_comparison_df(df_pr, df_main).copy()
     merged['densite_main'] = merged['Lignes_de_Code_main'] / merged['Nb_Methodes_main'].replace(0, 1)
     merged['densite_pr'] = merged['Lignes_de_Code_pr'] / merged['Nb_Methodes_pr'].replace(0, 1)
-    merged['has_change'] = ~np.isclose(merged['densite_main'], merged['densite_pr'])
+    merged['has_change'] = ~np.isclose(
+        merged['densite_main'], merged['densite_pr'], rtol=1e-05, atol=1e-08
+    )
     merged = merged.sort_values('densite_pr', ascending=True)
 
     y = np.arange(len(merged))
@@ -919,7 +923,9 @@ def page_compare_metric_barh(pdf, df_pr, df_main, metric_col, title, xlabel, out
     fig.text(0.5, 0.95, title, ha='center', fontsize=16, fontweight='bold', color='#2c3e50')
     ax = fig.add_axes([0.15, 0.28, 0.78, 0.62])
     merged = prepare_comparison_df(df_pr, df_main)
-    merged['has_change'] = merged[f'{metric_col}_pr'] != merged[f'{metric_col}_main']
+    merged['has_change'] = ~np.isclose(
+        merged[f'{metric_col}_pr'], merged[f'{metric_col}_main'], rtol=1e-05, atol=1e-08
+    )
     merged = merged.sort_values(f'{metric_col}_pr', ascending=True)
 
     y = np.arange(len(merged))
